@@ -566,16 +566,22 @@ export function scanDecisionPoints(
   // One decision covers all images — they all use the same strategy.
   if (imageNodes.length > 0) {
     const first = imageNodes[0];
+    const hasResolvedUrls = imageUrlMap && Object.keys(imageUrlMap).length > 0;
+    const messageResolved =
+      imageNodes.length === 1
+        ? `"${first.name}" has an image fill — using resolved Figma URL`
+        : `${imageNodes.length} image fills — using resolved Figma URLs`;
+    const messagePlaceholder =
+      imageNodes.length === 1
+        ? `"${first.name}" has an image fill — using placeholder`
+        : `${imageNodes.length} image fills — all using placeholders`;
     points.push({
       key: `__all__::image-fill`,
       nodeId: first.id,
       nodeName:
         imageNodes.length === 1 ? first.name : `${imageNodes.length} images`,
       type: "image-fill",
-      message:
-        imageNodes.length === 1
-          ? `"${first.name}" has an image fill — using placeholder`
-          : `${imageNodes.length} image fills — all using placeholders`,
+      message: hasResolvedUrls ? messageResolved : messagePlaceholder,
       options: DECISION_OPTIONS["image-fill"],
       defaultOptionId: DECISION_DEFAULTS["image-fill"],
     });

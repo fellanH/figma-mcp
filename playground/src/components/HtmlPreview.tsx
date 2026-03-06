@@ -204,40 +204,55 @@ export function HtmlPreview() {
     decisions,
     decisionPoints,
     setDecisionPoints,
+    imageUrlMap,
   } = useFigmaStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isRoot = selectedNode?.id === rootNode?.id;
 
-  // Scan for decision points when selected node changes
+  // Scan for decision points when selected node changes (pass imageUrlMap for message context)
   useEffect(() => {
     if (selectedNode) {
-      const points = scanDecisionPoints(selectedNode);
+      const points = scanDecisionPoints(selectedNode, imageUrlMap);
       setDecisionPoints(points);
     } else {
       setDecisionPoints([]);
     }
-  }, [selectedNode, setDecisionPoints]);
+  }, [selectedNode, setDecisionPoints, imageUrlMap]);
 
   const html = useMemo(() => {
     if (!selectedNode) return "";
-    return nodeToHTML(selectedNode, 0, true, undefined, undefined, decisions);
-  }, [selectedNode, decisions]);
+    return nodeToHTML(
+      selectedNode,
+      0,
+      true,
+      undefined,
+      undefined,
+      decisions,
+      imageUrlMap,
+    );
+  }, [selectedNode, decisions, imageUrlMap]);
 
   const cssText = useMemo(() => {
     if (!selectedNode) return "";
-    return nodeToStylesheet(selectedNode, undefined, decisions);
-  }, [selectedNode, decisions]);
+    return nodeToStylesheet(selectedNode, undefined, decisions, imageUrlMap);
+  }, [selectedNode, decisions, imageUrlMap]);
 
   const tailwindClasses = useMemo(() => {
     if (!selectedNode) return [];
-    const cssProps = figmaToCSS(selectedNode, undefined, isRoot);
+    const cssProps = figmaToCSS(
+      selectedNode,
+      undefined,
+      isRoot,
+      undefined,
+      imageUrlMap,
+    );
     return cssToTailwind(cssProps);
-  }, [selectedNode, isRoot, decisions]);
+  }, [selectedNode, isRoot, decisions, imageUrlMap]);
 
   const reactCode = useMemo(() => {
     if (!selectedNode) return "";
-    return nodeToReact(selectedNode, decisions);
-  }, [selectedNode, decisions]);
+    return nodeToReact(selectedNode, decisions, imageUrlMap);
+  }, [selectedNode, decisions, imageUrlMap]);
 
   const fontFaceCSS = useMemo(() => {
     return generateFontFaceDeclarations(decisionPoints, decisions);
@@ -245,11 +260,15 @@ export function HtmlPreview() {
 
   const livePreview = useMemo(() => {
     if (!selectedNode) return { html: "", css: "", fontImport: "" };
-    const result = nodeToHTMLWithStyleBlock(selectedNode, decisions);
+    const result = nodeToHTMLWithStyleBlock(
+      selectedNode,
+      decisions,
+      imageUrlMap,
+    );
     const fonts = collectFonts(selectedNode);
     const fontImport = googleFontsImport(fonts);
     return { ...result, fontImport };
-  }, [selectedNode, decisions]);
+  }, [selectedNode, decisions, imageUrlMap]);
 
   const bgStyles: Record<BgMode, string> = {
     dark: "background: #1e1e2e; color: #cdd6f4;",

@@ -21,8 +21,16 @@ function parseFigmaUrl(
 }
 
 export function Toolbar() {
-  const { fileName, rootNode, loadFile, expandAll, collapseAll } =
-    useFigmaStore();
+  const {
+    fileName,
+    rootNode,
+    loadFile,
+    expandAll,
+    collapseAll,
+    setFileKey,
+    setImageUrlMap,
+    setImageUrlsLoading,
+  } = useFigmaStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -58,6 +66,8 @@ export function Toolbar() {
       const res = await fetch(path);
       const data = await res.json();
       loadFile(data);
+      setFileKey(null);
+      setImageUrlMap({});
     } catch (err) {
       console.error("Failed to load sample:", err);
     }
@@ -114,7 +124,26 @@ export function Toolbar() {
 
       const data = await res.json();
       loadFile(data);
+      setFileKey(parsed.fileKey);
       setUrlInput("");
+
+      // Resolve image fill URLs in the background
+      setImageUrlsLoading(true);
+      try {
+        const imgRes = await fetch(
+          `https://api.figma.com/v1/files/${parsed.fileKey}/images`,
+          {
+            headers: { "X-Figma-Token": token },
+          },
+        );
+        if (imgRes.ok) {
+          const imgData = await imgRes.json();
+          setImageUrlMap(imgData.meta?.images ?? {});
+        }
+      } catch (e) {
+        console.warn("Failed to resolve image fill URLs:", e);
+      }
+      setImageUrlsLoading(false);
     } catch (err: any) {
       setFetchError(err.message ?? "Fetch failed");
       console.error("Figma fetch error:", err);

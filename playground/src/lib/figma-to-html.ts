@@ -1,6 +1,7 @@
 import type { FigmaNode, FigmaTypeStyle } from "../types/figma";
 import { figmaToCSS, cssToString, cssToTailwind } from "./figma-to-css";
 import { getDecision, type DecisionType } from "./decision-gates";
+import { findComponentMapping, generateMappedComponent } from "./component-map";
 
 type Decisions = Map<string, string>;
 
@@ -379,6 +380,7 @@ export function nodeToHTML(
   classMap?: Map<string, string>,
   ancestorTags?: Set<string>,
   decisions?: Decisions,
+  imageUrlMap?: Record<string, string>,
 ): string {
   if (node.visible === false) return "";
 
@@ -429,7 +431,13 @@ export function nodeToHTML(
   if (tag === "img") {
     const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
-    return `${prefix}${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
+    const imageFill = node.fills?.find((f) => f.type === "IMAGE" && f.imageRef);
+    const resolvedUrl =
+      imageFill?.imageRef && imageUrlMap?.[imageFill.imageRef];
+    const src =
+      resolvedUrl ??
+      `https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}`;
+    return `${prefix}${indent(depth)}<${tag}${classAttr} src="${src}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
   }
 
   if (tag === "hr") {
@@ -445,7 +453,15 @@ export function nodeToHTML(
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
     .map((c) =>
-      nodeToHTML(c, depth + 1, false, classMap, childAncestors, decisions),
+      nodeToHTML(
+        c,
+        depth + 1,
+        false,
+        classMap,
+        childAncestors,
+        decisions,
+        imageUrlMap,
+      ),
     )
     .filter(Boolean);
 
@@ -476,12 +492,13 @@ export function nodeToHTMLWithCSS(
   parentNode?: FigmaNode,
   ancestorTags?: Set<string>,
   childIndex?: number,
+  imageUrlMap?: Record<string, string>,
 ): string {
   if (node.visible === false) return "";
 
   const ancestors = ancestorTags ?? new Set<string>();
   const tag = inferElement(node, isRoot, ancestors);
-  const css = figmaToCSS(node, parentNode, isRoot, childIndex);
+  const css = figmaToCSS(node, parentNode, isRoot, childIndex, imageUrlMap);
   const styleAttr =
     Object.keys(css).length > 0
       ? ` style="${Object.entries(css)
@@ -497,7 +514,13 @@ export function nodeToHTMLWithCSS(
   if (tag === "img") {
     const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
-    return `${indent(depth)}<${tag}${styleAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
+    const imageFill = node.fills?.find((f) => f.type === "IMAGE" && f.imageRef);
+    const resolvedUrl =
+      imageFill?.imageRef && imageUrlMap?.[imageFill.imageRef];
+    const src =
+      resolvedUrl ??
+      `https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}`;
+    return `${indent(depth)}<${tag}${styleAttr} src="${src}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
   }
 
   if (tag === "hr" || tag === "svg") {
@@ -508,7 +531,15 @@ export function nodeToHTMLWithCSS(
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
     .map((c, idx) =>
-      nodeToHTMLWithCSS(c, depth + 1, false, node, childAncestors, idx),
+      nodeToHTMLWithCSS(
+        c,
+        depth + 1,
+        false,
+        node,
+        childAncestors,
+        idx,
+        imageUrlMap,
+      ),
     )
     .filter(Boolean);
 
@@ -530,6 +561,7 @@ export function nodeToStylesheet(
   node: FigmaNode,
   classMap?: Map<string, string>,
   decisions?: Decisions,
+  imageUrlMap?: Record<string, string>,
 ): string {
   if (!classMap) classMap = buildClassMap(node);
   const rules: string[] = [];
@@ -553,7 +585,7 @@ export function nodeToStylesheet(
     const className = classMap!.get(n.id);
     if (!className) return;
 
-    const css = figmaToCSS(n, parentNode, isRoot, childIndex);
+    const css = figmaToCSS(n, parentNode, isRoot, childIndex, imageUrlMap);
     const props = cssToString(css);
     if (props) {
       // Add decision comment as CSS comment
@@ -590,14 +622,22 @@ export function nodeToStylesheet(
 export function nodeToHTMLWithStyleBlock(
   node: FigmaNode,
   decisions?: Decisions,
+  imageUrlMap?: Record<string, string>,
 ): {
   html: string;
   css: string;
 } {
   const classMap = buildClassMap(node);
   const ancestors = new Set<string>();
-  const html = nodeToHTMLWithClasses(node, 0, true, classMap, ancestors);
-  const css = nodeToStylesheet(node, classMap, decisions);
+  const html = nodeToHTMLWithClasses(
+    node,
+    0,
+    true,
+    classMap,
+    ancestors,
+    imageUrlMap,
+  );
+  const css = nodeToStylesheet(node, classMap, decisions, imageUrlMap);
   return { html, css };
 }
 
@@ -608,6 +648,7 @@ function nodeToHTMLWithClasses(
   isRoot: boolean,
   classMap: Map<string, string>,
   ancestorTags: Set<string>,
+  imageUrlMap?: Record<string, string>,
 ): string {
   if (node.visible === false) return "";
 
@@ -626,7 +667,13 @@ function nodeToHTMLWithClasses(
   if (tag === "img") {
     const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
-    return `${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
+    const imageFill = node.fills?.find((f) => f.type === "IMAGE" && f.imageRef);
+    const resolvedUrl =
+      imageFill?.imageRef && imageUrlMap?.[imageFill.imageRef];
+    const src =
+      resolvedUrl ??
+      `https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}`;
+    return `${indent(depth)}<${tag}${classAttr} src="${src}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
   }
 
   if (tag === "hr") {
@@ -641,7 +688,14 @@ function nodeToHTMLWithClasses(
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
     .map((c) =>
-      nodeToHTMLWithClasses(c, depth + 1, false, classMap, childAncestors),
+      nodeToHTMLWithClasses(
+        c,
+        depth + 1,
+        false,
+        classMap,
+        childAncestors,
+        imageUrlMap,
+      ),
     )
     .filter(Boolean);
 
@@ -681,6 +735,8 @@ function nodeToReactInner(
   childIndex?: number,
   decisions?: Decisions,
   propsMap?: Map<string, string>,
+  imports?: Set<string>,
+  imageUrlMap?: Record<string, string>,
 ): string {
   if (node.visible === false) return "";
 
@@ -689,10 +745,30 @@ function nodeToReactInner(
     return `${indent(depth)}{/* Skipped: ${node.name} (unsupported) */}`;
   }
 
+  // Check for design-system mapping on non-root INSTANCE nodes
+  if (
+    !isRoot &&
+    node.type === "INSTANCE" &&
+    node.componentId &&
+    decisions &&
+    getDecision(decisions, node.id, "component-instance") === "design-system"
+  ) {
+    const mapping = findComponentMapping(node.name);
+    if (mapping) {
+      const { jsx, importStatement } = generateMappedComponent(
+        node as any,
+        mapping,
+        depth,
+      );
+      imports?.add(importStatement);
+      return jsx;
+    }
+  }
+
   const ancestors = ancestorTags ?? new Set<string>();
   const tag = inferElement(node, isRoot, ancestors);
 
-  const css = figmaToCSS(node, parentNode, isRoot, childIndex);
+  const css = figmaToCSS(node, parentNode, isRoot, childIndex, imageUrlMap);
   const tw = cssToTailwind(css);
   const classAttr = tw.length > 0 ? ` className="${tw.join(" ")}"` : "";
 
@@ -709,7 +785,11 @@ function nodeToReactInner(
   if (tag === "img") {
     const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
-    return `${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}" alt="${escapeHtml(node.name)}" width={${w}} height={${h}} />`;
+    const imageFill = node.fills?.find((f) => f.type === "IMAGE" && f.imageRef);
+    const resolvedUrl =
+      imageFill?.imageRef && imageUrlMap?.[imageFill.imageRef];
+    const src = resolvedUrl ?? `https://placehold.co/${w}x${h}`;
+    return `${indent(depth)}<${tag}${classAttr} src="${src}" alt="${escapeHtml(node.name)}" width={${w}} height={${h}} />`;
   }
 
   if (tag === "hr" || tag === "svg") {
@@ -729,6 +809,8 @@ function nodeToReactInner(
         idx,
         decisions,
         propsMap,
+        imports,
+        imageUrlMap,
       ),
     )
     .filter(Boolean);
@@ -744,8 +826,36 @@ function nodeToReactInner(
   ].join("\n");
 }
 
-export function nodeToReact(node: FigmaNode, decisions?: Decisions): string {
+export function nodeToReact(
+  node: FigmaNode,
+  decisions?: Decisions,
+  imageUrlMap?: Record<string, string>,
+): string {
   const componentName = toPascalCase(node.name) || "Component";
+
+  // Collect design system imports across the tree
+  const imports = new Set<string>();
+
+  // Check if this is a component instance with "design-system" decision at root level
+  const useDesignSystem =
+    node.type === "INSTANCE" &&
+    node.componentId &&
+    decisions &&
+    getDecision(decisions, node.id, "component-instance") === "design-system";
+
+  if (useDesignSystem) {
+    const mapping = findComponentMapping(node.name);
+    if (mapping) {
+      const { jsx, importStatement } = generateMappedComponent(
+        node as any,
+        mapping,
+        2,
+      );
+      imports.add(importStatement);
+      const importsStr = [...imports].join("\n");
+      return `${importsStr}\n\nexport default function ${componentName}() {\n  return (\n${jsx}\n  );\n}`;
+    }
+  }
 
   // Check if this is a component instance with "component-props" decision
   const useProps =
@@ -793,10 +903,15 @@ export function nodeToReact(node: FigmaNode, decisions?: Decisions): string {
         undefined,
         decisions,
         propsMap,
+        imports,
+        imageUrlMap,
       );
 
+      const importsStr =
+        imports.size > 0 ? [...imports].join("\n") + "\n\n" : "";
+
       return [
-        `interface ${interfaceName} {`,
+        `${importsStr}interface ${interfaceName} {`,
         propsInterface,
         `}`,
         ``,
@@ -811,7 +926,7 @@ export function nodeToReact(node: FigmaNode, decisions?: Decisions): string {
     }
   }
 
-  // Standard static output
+  // Standard static output (pass imports collector for nested instances)
   const jsx = nodeToReactInner(
     node,
     2,
@@ -820,9 +935,13 @@ export function nodeToReact(node: FigmaNode, decisions?: Decisions): string {
     undefined,
     undefined,
     decisions,
+    undefined,
+    imports,
+    imageUrlMap,
   );
 
-  return `export default function ${componentName}() {\n  return (\n${jsx}\n  );\n}`;
+  const importsStr = imports.size > 0 ? [...imports].join("\n") + "\n\n" : "";
+  return `${importsStr}export default function ${componentName}() {\n  return (\n${jsx}\n  );\n}`;
 }
 
 export { inferElement };

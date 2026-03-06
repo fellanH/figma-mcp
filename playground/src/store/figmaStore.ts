@@ -13,6 +13,11 @@ interface FigmaStore {
   rootNode: FigmaNode | null;
   fileName: string;
 
+  // Figma file key + image URL resolution
+  fileKey: string | null;
+  imageUrlMap: Record<string, string>;
+  imageUrlsLoading: boolean;
+
   // Selection
   selectedNodeId: string | null;
   selectedNode: FigmaNode | null;
@@ -47,6 +52,9 @@ interface FigmaStore {
   setDecisionPoints: (points: DecisionPoint[]) => void;
   setDecision: (key: string, optionId: string) => void;
   toggleDecisionPanel: () => void;
+  setFileKey: (key: string | null) => void;
+  setImageUrlMap: (map: Record<string, string>) => void;
+  setImageUrlsLoading: (loading: boolean) => void;
 }
 
 function collectAllIds(node: FigmaNode): string[] {
@@ -59,6 +67,9 @@ export const useFigmaStore = create<FigmaStore>((set, get) => ({
   fileResponse: null,
   rootNode: null,
   fileName: "",
+  fileKey: null,
+  imageUrlMap: {},
+  imageUrlsLoading: false,
   selectedNodeId: null,
   selectedNode: null,
   expandedNodes: new Set<string>(),
@@ -122,6 +133,10 @@ export const useFigmaStore = create<FigmaStore>((set, get) => ({
   },
   toggleDecisionPanel: () =>
     set({ showDecisionPanel: !get().showDecisionPanel }),
+
+  setFileKey: (key) => set({ fileKey: key }),
+  setImageUrlMap: (map) => set({ imageUrlMap: map }),
+  setImageUrlsLoading: (loading) => set({ imageUrlsLoading: loading }),
 
   expandAll: () => {
     const root = get().rootNode;
