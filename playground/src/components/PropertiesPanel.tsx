@@ -396,6 +396,35 @@ export function PropertiesPanel() {
         </Section>
       )}
 
+      {/* Component Instance */}
+      {node.type === "INSTANCE" && node.componentId && (
+        <Section title="Component Instance">
+          <PropRow label="componentId" value={node.componentId} />
+          {node.componentProperties &&
+            Object.entries(node.componentProperties).map(([key, val]) => (
+              <PropRow
+                key={key}
+                label={key}
+                value={`${val.value ?? ""} (${val.type ?? ""})`}
+              />
+            ))}
+          {node.overrides && node.overrides.length > 0 && (
+            <div className="mt-1">
+              <div className="text-[10px] text-text-dim mb-0.5">Overrides</div>
+              {node.overrides.map((o, i) => (
+                <div key={i} className="text-[10px] text-text-dim py-0.5">
+                  <span className="text-accent">
+                    {o.id === node.id ? "self" : o.id}
+                  </span>
+                  {": "}
+                  {o.overriddenFields.join(", ")}
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
       {/* Corner Radius */}
       {(node.cornerRadius || node.rectangleCornerRadii) && (
         <Section title="Corner Radius" defaultOpen={false}>

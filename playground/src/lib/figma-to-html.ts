@@ -1,5 +1,8 @@
 import type { FigmaNode, FigmaTypeStyle } from "../types/figma";
 import { figmaToCSS, cssToString, cssToTailwind } from "./figma-to-css";
+import { getDecision, type DecisionType } from "./decision-gates";
+
+type Decisions = Map<string, string>;
 
 /** Convert a Figma node name to a kebab-case CSS class name. */
 function nodeNameToKebab(name: string): string {
@@ -117,6 +120,39 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// ---------------------------------------------------------------------------
+// Decision comment helpers
+// ---------------------------------------------------------------------------
+
+/** Build an HTML comment noting a decision gate was applied. */
+function decisionComment(
+  decisions: Decisions | undefined,
+  nodeId: string,
+  type: DecisionType,
+  depth: number,
+): string {
+  if (!decisions) return "";
+  const choice = getDecision(decisions, nodeId, type);
+  // Only comment when the user has actively changed from default
+  const key = `${nodeId}::${type}`;
+  if (!decisions.has(key)) return "";
+  return `${indent(depth)}<!-- Decision: ${type} → ${choice} -->\n`;
+}
+
+/** Check if a node should be skipped based on a "skip" decision. */
+function isSkipped(
+  decisions: Decisions | undefined,
+  nodeId: string,
+  type: DecisionType,
+): boolean {
+  if (!decisions) return false;
+  return getDecision(decisions, nodeId, type) === "skip";
+}
+
+// ---------------------------------------------------------------------------
+// Text content rendering
+// ---------------------------------------------------------------------------
+
 /** Build inline style for a style override diff against the base style. */
 function overrideToInlineStyle(
   base: FigmaTypeStyle,
@@ -195,8 +231,7 @@ function overrideToCSS(
   return css;
 }
 
-/** Render text content with characterStyleOverrides as JSX <span> elements.
- *  Each run's override diff is converted to Tailwind className strings. */
+/** Render text content with characterStyleOverrides as JSX <span> elements. */
 function renderTextContentJSX(node: FigmaNode): string {
   const text = node.characters ?? node.name;
   const overrides = node.characterStyleOverrides;
@@ -207,7 +242,6 @@ function renderTextContentJSX(node: FigmaNode): string {
     return escapeHtml(text);
   }
 
-  // Group consecutive characters by their style override ID
   const segments: { styleId: number; text: string }[] = [];
   for (let i = 0; i < text.length; i++) {
     const styleId = i < overrides.length ? overrides[i] : 0;
@@ -235,7 +269,7 @@ function renderTextContentJSX(node: FigmaNode): string {
     .join("");
 }
 
-/** Render text content with characterStyleOverrides as <span> elements (#34). */
+/** Render text content with characterStyleOverrides as <span> elements. */
 function renderTextContent(node: FigmaNode): string {
   const text = node.characters ?? node.name;
   const overrides = node.characterStyleOverrides;
@@ -246,7 +280,6 @@ function renderTextContent(node: FigmaNode): string {
     return escapeHtml(text);
   }
 
-  // Group consecutive characters by their style override ID
   const segments: { styleId: number; text: string }[] = [];
   for (let i = 0; i < text.length; i++) {
     const styleId = i < overrides.length ? overrides[i] : 0;
@@ -283,6 +316,60 @@ function nextAncestors(current: Set<string>, tag: string): Set<string> {
   return current;
 }
 
+// ---------------------------------------------------------------------------
+// Component instance helpers (#13)
+// ---------------------------------------------------------------------------
+
+/** Extract variant property names and text override points from an INSTANCE node. */
+function extractComponentProps(
+  node: FigmaNode,
+): { name: string; type: string; defaultValue: string }[] {
+  const props: { name: string; type: string; defaultValue: string }[] = [];
+
+  // Variant properties from componentProperties
+  if (node.componentProperties) {
+    for (const [key, val] of Object.entries(node.componentProperties)) {
+      props.push({
+        name: toCamelCase(key),
+        type: val.type === "VARIANT" ? "string" : "string",
+        defaultValue: String(val.value ?? ""),
+      });
+    }
+  }
+
+  // Find text children that could be overrideable props
+  function findTextChildren(n: FigmaNode, prefix: string) {
+    if (n.visible === false) return;
+    if (n.type === "TEXT" && n.characters) {
+      const propName =
+        prefix +
+        n.name
+          .replace(/[^a-zA-Z0-9]+/g, " ")
+          .trim()
+          .split(/\s+/)
+          .map((w, i) =>
+            i === 0
+              ? w.toLowerCase()
+              : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+          )
+          .join("");
+      if (propName && !props.some((p) => p.name === propName)) {
+        props.push({
+          name: propName,
+          type: "string",
+          defaultValue: n.characters,
+        });
+      }
+    }
+    for (const child of n.children ?? []) {
+      findTextChildren(child, prefix);
+    }
+  }
+
+  findTextChildren(node, "");
+  return props;
+}
+
 // ─── HTML tab (semantic HTML with class names) ────────────────────────
 
 export function nodeToHTML(
@@ -291,8 +378,20 @@ export function nodeToHTML(
   isRoot = true,
   classMap?: Map<string, string>,
   ancestorTags?: Set<string>,
+  decisions?: Decisions,
 ): string {
   if (node.visible === false) return "";
+
+  // Decision gate: skip nodes
+  if (isSkipped(decisions, node.id, "unsupported-node")) {
+    return `${indent(depth)}<!-- Skipped: ${escapeHtml(node.name)} (unsupported node) -->`;
+  }
+  if (isSkipped(decisions, node.id, "diamond-gradient")) {
+    return `${indent(depth)}<!-- Skipped: diamond gradient on ${escapeHtml(node.name)} -->`;
+  }
+  if (isSkipped(decisions, node.id, "image-fill")) {
+    return `${indent(depth)}<!-- Skipped: image fill on ${escapeHtml(node.name)} -->`;
+  }
 
   // Build class map once at root
   if (!classMap) classMap = buildClassMap(node);
@@ -300,43 +399,62 @@ export function nodeToHTML(
 
   const tag = inferElement(node, isRoot, ancestors);
   const className = classMap.get(node.id);
+
+  // Component instance annotation
+  const isInstance = node.type === "INSTANCE" && node.componentId;
+  const instanceComment =
+    isInstance && !isRoot
+      ? `${indent(depth)}<!-- Component: ${escapeHtml(node.name)} (${node.componentId}) -->\n`
+      : "";
+
+  // Decision comments
+  let dComment = "";
+  dComment += decisionComment(decisions, node.id, "diamond-gradient", depth);
+  dComment += decisionComment(decisions, node.id, "complex-transform", depth);
+  dComment += decisionComment(decisions, node.id, "image-fill", depth);
+  dComment += decisionComment(decisions, node.id, "component-instance", depth);
+
+  const prefix = instanceComment + dComment;
+
   const classAttr = className ? ` class="${className}"` : "";
 
   if (node.type === "TEXT") {
     const content = renderTextContent(node);
     if (tag === "a") {
-      return `${indent(depth)}<${tag} href="#"${classAttr}>${content}</${tag}>`;
+      return `${prefix}${indent(depth)}<${tag} href="#"${classAttr}>${content}</${tag}>`;
     }
-    return `${indent(depth)}<${tag}${classAttr}>${content}</${tag}>`;
+    return `${prefix}${indent(depth)}<${tag}${classAttr}>${content}</${tag}>`;
   }
 
   if (tag === "img") {
     const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
-    return `${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
+    return `${prefix}${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
   }
 
   if (tag === "hr") {
-    return `${indent(depth)}<${tag}${classAttr} />`;
+    return `${prefix}${indent(depth)}<${tag}${classAttr} />`;
   }
 
   if (tag === "svg") {
-    return `${indent(depth)}<${tag}${classAttr}><!-- ${escapeHtml(node.name)} --></${tag}>`;
+    return `${prefix}${indent(depth)}<${tag}${classAttr}><!-- ${escapeHtml(node.name)} --></${tag}>`;
   }
 
   // Container element
   const childAncestors = nextAncestors(ancestors, tag);
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
-    .map((c) => nodeToHTML(c, depth + 1, false, classMap, childAncestors))
+    .map((c) =>
+      nodeToHTML(c, depth + 1, false, classMap, childAncestors, decisions),
+    )
     .filter(Boolean);
 
   if (children.length === 0) {
-    return `${indent(depth)}<${tag}${classAttr}></${tag}>`;
+    return `${prefix}${indent(depth)}<${tag}${classAttr}></${tag}>`;
   }
 
   const body = [
-    `${indent(depth)}<${tag}${classAttr}>`,
+    `${prefix}${indent(depth)}<${tag}${classAttr}>`,
     ...children,
     `${indent(depth)}</${tag}>`,
   ].join("\n");
@@ -411,6 +529,7 @@ export function nodeToHTMLWithCSS(
 export function nodeToStylesheet(
   node: FigmaNode,
   classMap?: Map<string, string>,
+  decisions?: Decisions,
 ): string {
   if (!classMap) classMap = buildClassMap(node);
   const rules: string[] = [];
@@ -422,14 +541,31 @@ export function nodeToStylesheet(
     childIndex?: number,
   ) {
     if (n.visible === false) return;
+
+    // Skip nodes with "skip" decisions
+    if (
+      isSkipped(decisions, n.id, "unsupported-node") ||
+      isSkipped(decisions, n.id, "image-fill")
+    ) {
+      return;
+    }
+
     const className = classMap!.get(n.id);
     if (!className) return;
 
     const css = figmaToCSS(n, parentNode, isRoot, childIndex);
     const props = cssToString(css);
     if (props) {
+      // Add decision comment as CSS comment
+      let comment = "";
+      if (decisions?.has(`${n.id}::diamond-gradient`)) {
+        comment = `  /* Decision: diamond-gradient → ${getDecision(decisions, n.id, "diamond-gradient")} */\n`;
+      }
+      if (decisions?.has(`${n.id}::component-instance`)) {
+        comment += `  /* Component instance: ${n.name} */\n`;
+      }
       rules.push(
-        `.${className} {\n${props
+        `.${className} {\n${comment}${props
           .split("\n")
           .map((line) => "  " + line)
           .join("\n")}\n}`,
@@ -451,14 +587,17 @@ export function nodeToStylesheet(
 // ─── Live tab with <style> block ──────────────────────────────────────
 
 /** Generate HTML with class attributes + a matching stylesheet (no inline styles). */
-export function nodeToHTMLWithStyleBlock(node: FigmaNode): {
+export function nodeToHTMLWithStyleBlock(
+  node: FigmaNode,
+  decisions?: Decisions,
+): {
   html: string;
   css: string;
 } {
   const classMap = buildClassMap(node);
   const ancestors = new Set<string>();
   const html = nodeToHTMLWithClasses(node, 0, true, classMap, ancestors);
-  const css = nodeToStylesheet(node, classMap);
+  const css = nodeToStylesheet(node, classMap, decisions);
   return { html, css };
 }
 
@@ -528,6 +667,11 @@ function toPascalCase(name: string): string {
     .join("");
 }
 
+function toCamelCase(name: string): string {
+  const pascal = toPascalCase(name);
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+}
+
 function nodeToReactInner(
   node: FigmaNode,
   depth = 0,
@@ -535,8 +679,15 @@ function nodeToReactInner(
   parentNode?: FigmaNode,
   ancestorTags?: Set<string>,
   childIndex?: number,
+  decisions?: Decisions,
+  propsMap?: Map<string, string>,
 ): string {
   if (node.visible === false) return "";
+
+  // Decision: skip
+  if (isSkipped(decisions, node.id, "unsupported-node")) {
+    return `${indent(depth)}{/* Skipped: ${node.name} (unsupported) */}`;
+  }
 
   const ancestors = ancestorTags ?? new Set<string>();
   const tag = inferElement(node, isRoot, ancestors);
@@ -546,7 +697,9 @@ function nodeToReactInner(
   const classAttr = tw.length > 0 ? ` className="${tw.join(" ")}"` : "";
 
   if (node.type === "TEXT") {
-    const content = renderTextContentJSX(node);
+    // If this text node is mapped to a prop, use the prop expression
+    const propName = propsMap?.get(node.id);
+    const content = propName ? `{${propName}}` : renderTextContentJSX(node);
     if (tag === "a") {
       return `${indent(depth)}<${tag} href="#"${classAttr}>${content}</${tag}>`;
     }
@@ -567,7 +720,16 @@ function nodeToReactInner(
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
     .map((c, idx) =>
-      nodeToReactInner(c, depth + 1, false, node, childAncestors, idx),
+      nodeToReactInner(
+        c,
+        depth + 1,
+        false,
+        node,
+        childAncestors,
+        idx,
+        decisions,
+        propsMap,
+      ),
     )
     .filter(Boolean);
 
@@ -582,9 +744,83 @@ function nodeToReactInner(
   ].join("\n");
 }
 
-export function nodeToReact(node: FigmaNode): string {
+export function nodeToReact(node: FigmaNode, decisions?: Decisions): string {
   const componentName = toPascalCase(node.name) || "Component";
-  const jsx = nodeToReactInner(node, 2, true);
+
+  // Check if this is a component instance with "component-props" decision
+  const useProps =
+    node.type === "INSTANCE" &&
+    node.componentId &&
+    decisions &&
+    getDecision(decisions, node.id, "component-instance") === "component-props";
+
+  if (useProps) {
+    const props = extractComponentProps(node);
+    if (props.length > 0) {
+      // Build a text-node-to-prop mapping
+      const propsMap = new Map<string, string>();
+      function mapTextProps(n: FigmaNode) {
+        if (n.visible === false) return;
+        if (n.type === "TEXT" && n.characters) {
+          const propName = toCamelCase(n.name);
+          if (props.some((p) => p.name === propName)) {
+            propsMap.set(n.id, propName);
+          }
+        }
+        for (const child of n.children ?? []) {
+          mapTextProps(child);
+        }
+      }
+      mapTextProps(node);
+
+      // Generate typed props interface
+      const interfaceName = `${componentName}Props`;
+      const propsInterface = props
+        .map((p) => `  ${p.name}?: ${p.type};`)
+        .join("\n");
+
+      const defaultProps = props
+        .filter((p) => p.defaultValue)
+        .map((p) => `  ${p.name} = ${JSON.stringify(p.defaultValue)}`)
+        .join(",\n");
+
+      const jsx = nodeToReactInner(
+        node,
+        2,
+        true,
+        undefined,
+        undefined,
+        undefined,
+        decisions,
+        propsMap,
+      );
+
+      return [
+        `interface ${interfaceName} {`,
+        propsInterface,
+        `}`,
+        ``,
+        `export default function ${componentName}({`,
+        defaultProps,
+        `}: ${interfaceName}) {`,
+        `  return (`,
+        jsx,
+        `  );`,
+        `}`,
+      ].join("\n");
+    }
+  }
+
+  // Standard static output
+  const jsx = nodeToReactInner(
+    node,
+    2,
+    true,
+    undefined,
+    undefined,
+    undefined,
+    decisions,
+  );
 
   return `export default function ${componentName}() {\n  return (\n${jsx}\n  );\n}`;
 }

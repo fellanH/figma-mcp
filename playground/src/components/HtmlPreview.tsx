@@ -11,6 +11,8 @@ import {
   nodeToStylesheet,
   nodeToHTMLWithStyleBlock,
 } from "../lib/figma-to-html";
+import { scanDecisionPoints } from "../lib/decision-gates";
+import { DecisionPanel } from "./DecisionPanel";
 import { Copy, Check, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
 import type { PreviewTab, ViewportPreset, BgMode } from "../store/figmaStore";
@@ -198,38 +200,50 @@ export function HtmlPreview() {
     zoom,
     viewportPreset,
     bgMode,
+    decisions,
+    setDecisionPoints,
   } = useFigmaStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isRoot = selectedNode?.id === rootNode?.id;
 
+  // Scan for decision points when selected node changes
+  useEffect(() => {
+    if (selectedNode) {
+      const points = scanDecisionPoints(selectedNode);
+      setDecisionPoints(points);
+    } else {
+      setDecisionPoints([]);
+    }
+  }, [selectedNode, setDecisionPoints]);
+
   const html = useMemo(() => {
     if (!selectedNode) return "";
-    return nodeToHTML(selectedNode);
-  }, [selectedNode]);
+    return nodeToHTML(selectedNode, 0, true, undefined, undefined, decisions);
+  }, [selectedNode, decisions]);
 
   const cssText = useMemo(() => {
     if (!selectedNode) return "";
-    return nodeToStylesheet(selectedNode);
-  }, [selectedNode]);
+    return nodeToStylesheet(selectedNode, undefined, decisions);
+  }, [selectedNode, decisions]);
 
   const tailwindClasses = useMemo(() => {
     if (!selectedNode) return [];
     const cssProps = figmaToCSS(selectedNode, undefined, isRoot);
     return cssToTailwind(cssProps);
-  }, [selectedNode, isRoot]);
+  }, [selectedNode, isRoot, decisions]);
 
   const reactCode = useMemo(() => {
     if (!selectedNode) return "";
-    return nodeToReact(selectedNode);
-  }, [selectedNode]);
+    return nodeToReact(selectedNode, decisions);
+  }, [selectedNode, decisions]);
 
   const livePreview = useMemo(() => {
     if (!selectedNode) return { html: "", css: "", fontImport: "" };
-    const result = nodeToHTMLWithStyleBlock(selectedNode);
+    const result = nodeToHTMLWithStyleBlock(selectedNode, decisions);
     const fonts = collectFonts(selectedNode);
     const fontImport = googleFontsImport(fonts);
     return { ...result, fontImport };
-  }, [selectedNode]);
+  }, [selectedNode, decisions]);
 
   const bgStyles: Record<BgMode, string> = {
     dark: "background: #1e1e2e; color: #cdd6f4;",
@@ -339,6 +353,7 @@ ${livePreview.css}
           <CopyButton text={copyText} />
         </div>
       </div>
+      <DecisionPanel />
       {previewTab === "live" && <LivePreviewToolbar />}
       <div className="flex-1 overflow-auto p-3">
         {previewTab === "live" ? (

@@ -92,6 +92,22 @@ export function NodeTreeItem({ node, depth, matchingIds, visibleIds }: Props) {
             {SIZING_LABEL[vSizing] ?? vSizing[0]}
           </span>
         )}
+        {node.type === "INSTANCE" && (
+          <span
+            className="flex-none text-[9px] px-1 rounded bg-purple-500/20 text-purple-400"
+            title={`Instance of ${node.componentId}`}
+          >
+            I
+          </span>
+        )}
+        {node.type === "COMPONENT" && (
+          <span
+            className="flex-none text-[9px] px-1 rounded bg-green-500/20 text-green-400"
+            title="Component"
+          >
+            C
+          </span>
+        )}
       </div>
       {hasChildren &&
         isExpanded &&

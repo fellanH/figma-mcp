@@ -158,7 +158,11 @@ export interface FigmaNode {
 
   // Component
   componentId?: string;
-  componentProperties?: Record<string, unknown>;
+  componentProperties?: Record<
+    string,
+    { value?: string; type?: string; boundVariables?: unknown }
+  >;
+  overrides?: { id: string; overriddenFields: string[] }[];
 }
 
 export interface FigmaFileResponse {

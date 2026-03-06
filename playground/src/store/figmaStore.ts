@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { FigmaNode, FigmaFileResponse, SampleFile } from "../types/figma";
 import { extractRootNode } from "../lib/tree-utils";
+import type { DecisionPoint } from "../lib/decision-gates";
 
 export type PreviewTab = "html" | "css" | "tailwind" | "react" | "live";
 export type ViewportPreset = "mobile" | "tablet" | "desktop" | "full";
@@ -25,6 +26,11 @@ interface FigmaStore {
   viewportPreset: ViewportPreset;
   bgMode: BgMode;
 
+  // Decision gates
+  decisionPoints: DecisionPoint[];
+  decisions: Map<string, string>;
+  showDecisionPanel: boolean;
+
   // Actions
   loadFile: (data: FigmaFileResponse) => void;
   selectNode: (id: string, node: FigmaNode) => void;
@@ -38,6 +44,9 @@ interface FigmaStore {
   setZoom: (zoom: number) => void;
   setViewportPreset: (preset: ViewportPreset) => void;
   setBgMode: (mode: BgMode) => void;
+  setDecisionPoints: (points: DecisionPoint[]) => void;
+  setDecision: (key: string, optionId: string) => void;
+  toggleDecisionPanel: () => void;
 }
 
 function collectAllIds(node: FigmaNode): string[] {
@@ -59,6 +68,9 @@ export const useFigmaStore = create<FigmaStore>((set, get) => ({
   zoom: 100,
   viewportPreset: "full",
   bgMode: "dark",
+  decisionPoints: [],
+  decisions: new Map<string, string>(),
+  showDecisionPanel: false,
 
   loadFile: (data) => {
     const root = extractRootNode(data);
@@ -102,6 +114,14 @@ export const useFigmaStore = create<FigmaStore>((set, get) => ({
   setZoom: (zoom) => set({ zoom: Math.max(25, Math.min(200, zoom)) }),
   setViewportPreset: (preset) => set({ viewportPreset: preset }),
   setBgMode: (mode) => set({ bgMode: mode }),
+  setDecisionPoints: (points) => set({ decisionPoints: points }),
+  setDecision: (key, optionId) => {
+    const decisions = new Map(get().decisions);
+    decisions.set(key, optionId);
+    set({ decisions });
+  },
+  toggleDecisionPanel: () =>
+    set({ showDecisionPanel: !get().showDecisionPanel }),
 
   expandAll: () => {
     const root = get().rootNode;
