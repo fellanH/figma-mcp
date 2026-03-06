@@ -262,7 +262,12 @@ export function figmaToCSS(
     }
 
     if (bgLayers.length === 1 && visibleFills[0]?.type === "SOLID") {
-      css["background-color"] = fillToBgLayer(visibleFills[0], node) ?? "";
+      // TEXT nodes use color, not background-color
+      if (node.type === "TEXT") {
+        css["color"] = fillToBgLayer(visibleFills[0], node) ?? "";
+      } else {
+        css["background-color"] = fillToBgLayer(visibleFills[0], node) ?? "";
+      }
     } else if (bgLayers.length > 0) {
       css["background"] = bgLayers.join(", ");
     }
@@ -362,6 +367,18 @@ export function figmaToCSS(
     (e) => e.type === "BACKGROUND_BLUR" && e.visible,
   );
   if (bgBlur) css["backdrop-filter"] = `blur(${bgBlur.radius}px)`;
+
+  // Node-level blend mode → mix-blend-mode (#11)
+  if (
+    node.blendMode &&
+    node.blendMode !== "PASS_THROUGH" &&
+    node.blendMode !== "NORMAL"
+  ) {
+    const blended = mapBlendMode(node.blendMode);
+    if (blended !== "normal") {
+      css["mix-blend-mode"] = blended;
+    }
+  }
 
   // Opacity (node-level only — per-fill opacity is baked into fill colors)
   if (node.opacity !== undefined && node.opacity < 1) {
@@ -474,6 +491,127 @@ export function cssToTailwind(css: CSSProperties): string[] {
       const val = parseFloat(css["opacity"]);
       if (!isNaN(val)) classes.push(`opacity-[${val}]`);
     },
+    "background-color": () => {
+      const val = css["background-color"];
+      if (val) classes.push(`bg-[${val.replace(/ /g, "_")}]`);
+    },
+    color: () => {
+      const val = css["color"];
+      if (val) classes.push(`text-[${val.replace(/ /g, "_")}]`);
+    },
+    "box-shadow": () => {
+      const val = css["box-shadow"];
+      if (val) classes.push(`shadow-[${val.replace(/ /g, "_")}]`);
+    },
+    filter: () => {
+      const val = css["filter"];
+      if (val) classes.push(`blur-[${val.match(/\d+/)?.[0] ?? "0"}px]`);
+    },
+    "backdrop-filter": () => {
+      const val = css["backdrop-filter"];
+      if (val)
+        classes.push(`backdrop-blur-[${val.match(/\d+/)?.[0] ?? "0"}px]`);
+    },
+    border: () => {
+      const val = css["border"];
+      if (val) classes.push(`border-[${val.replace(/ /g, "_")}]`);
+    },
+    "border-top": () => {
+      const val = css["border-top"];
+      if (val) classes.push(`border-t-[${val.replace(/ /g, "_")}]`);
+    },
+    "border-right": () => {
+      const val = css["border-right"];
+      if (val) classes.push(`border-r-[${val.replace(/ /g, "_")}]`);
+    },
+    "border-bottom": () => {
+      const val = css["border-bottom"];
+      if (val) classes.push(`border-b-[${val.replace(/ /g, "_")}]`);
+    },
+    "border-left": () => {
+      const val = css["border-left"];
+      if (val) classes.push(`border-l-[${val.replace(/ /g, "_")}]`);
+    },
+    "line-height": () => {
+      const val = css["line-height"];
+      if (val) classes.push(`leading-[${val}]`);
+    },
+    "letter-spacing": () => {
+      const val = css["letter-spacing"];
+      if (val) classes.push(`tracking-[${val}]`);
+    },
+    "font-family": () => {
+      const val = css["font-family"];
+      if (val) classes.push(`font-[${val.replace(/[" ]/g, "_")}]`);
+    },
+    "font-style": () => {
+      if (css["font-style"] === "italic") classes.push("italic");
+    },
+    "text-align": () => {
+      const m: Record<string, string> = {
+        left: "text-left",
+        center: "text-center",
+        right: "text-right",
+        justify: "text-justify",
+      };
+      const val = css["text-align"];
+      if (val && m[val]) classes.push(m[val]);
+    },
+    "text-decoration": () => {
+      const m: Record<string, string> = {
+        underline: "underline",
+        "line-through": "line-through",
+      };
+      const val = css["text-decoration"];
+      if (val && m[val]) classes.push(m[val]);
+    },
+    "text-transform": () => {
+      const m: Record<string, string> = {
+        uppercase: "uppercase",
+        lowercase: "lowercase",
+        capitalize: "capitalize",
+      };
+      const val = css["text-transform"];
+      if (val && m[val]) classes.push(m[val]);
+    },
+    "min-width": () => {
+      const val = css["min-width"];
+      if (val) classes.push(`min-w-[${val}]`);
+    },
+    "max-width": () => {
+      const val = css["max-width"];
+      if (val) classes.push(`max-w-[${val}]`);
+    },
+    "min-height": () => {
+      const val = css["min-height"];
+      if (val) classes.push(`min-h-[${val}]`);
+    },
+    "max-height": () => {
+      const val = css["max-height"];
+      if (val) classes.push(`max-h-[${val}]`);
+    },
+    "align-self": () => {
+      const m: Record<string, string> = {
+        stretch: "self-stretch",
+        "flex-start": "self-start",
+        center: "self-center",
+        "flex-end": "self-end",
+      };
+      const val = css["align-self"];
+      if (val && m[val]) classes.push(m[val]);
+    },
+    "row-gap": () => {
+      const val = parseInt(css["row-gap"]);
+      if (val) classes.push(`gap-y-[${val}px]`);
+    },
+    "column-gap": () => {
+      const val = parseInt(css["column-gap"]);
+      if (val) classes.push(`gap-x-[${val}px]`);
+    },
+    "mix-blend-mode": () => {
+      const val = css["mix-blend-mode"];
+      if (val) classes.push(`mix-blend-${val}`);
+    },
   };
 
   for (const key of Object.keys(css)) {
@@ -499,7 +637,6 @@ export function cssToTailwind(css: CSSProperties): string[] {
     };
     classes.push(m[w] ?? `font-[${w}]`);
   }
-  if (css["text-transform"] === "uppercase") classes.push("uppercase");
 
   return classes;
 }
