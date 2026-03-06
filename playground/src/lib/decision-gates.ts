@@ -1,4 +1,5 @@
 import type { FigmaNode } from "../types/figma";
+import { findComponentMapping } from "./component-map";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +29,8 @@ export interface DecisionPoint {
   message: string;
   options: DecisionOption[];
   defaultOptionId: string;
+  /** Optional metadata for code generation (e.g., font family name). */
+  metadata?: Record<string, string>;
 }
 
 export interface DecisionRecord {
@@ -83,21 +86,29 @@ const DECISION_OPTIONS: Record<DecisionType, DecisionOption[]> = {
   ],
   "unknown-font": [
     {
-      id: "system-fallback",
-      label: "System fallback",
-      description: "Use the closest system font family",
-    },
-    {
       id: "keep-name",
       label: "Keep font name",
-      description: "Keep the original font name (user provides the file)",
+      description:
+        "Keep the original font name — add @font-face or CDN link manually",
+    },
+    {
+      id: "generate-font-face",
+      label: "Generate @font-face",
+      description:
+        "Generate a @font-face template with hosting guidance comments",
+    },
+    {
+      id: "system-fallback",
+      label: "System fallback",
+      description: "Replace with system font stack (system-ui, sans-serif)",
     },
   ],
   "image-fill": [
     {
       id: "placeholder",
       label: "Placeholder",
-      description: "Use a sized placeholder image with dimensions label",
+      description:
+        "Use a sized placeholder (use MCP export_assets tool to get real images)",
     },
     {
       id: "skip",
@@ -128,6 +139,11 @@ const DECISION_OPTIONS: Record<DecisionType, DecisionOption[]> = {
       label: "Flatten to static",
       description:
         "Render as static HTML (default — preserves visual fidelity)",
+    },
+    {
+      id: "design-system",
+      label: "Map to design system",
+      description: "Map to shadcn/ui component with matching props and imports",
     },
     {
       id: "component-props",
@@ -198,6 +214,86 @@ const GOOGLE_FONT_SET = new Set([
   "Satoshi",
   "Clash Display",
   "Cabinet Grotesk",
+  "Lexend",
+  "Figtree",
+  "Instrument Sans",
+  "Instrument Serif",
+  "Be Vietnam Pro",
+  "Bricolage Grotesque",
+  "Gabarito",
+  "Onest",
+  "Wix Madefor Display",
+  "Wix Madefor Text",
+  "Urbanist",
+  "Epilogue",
+  "Overpass",
+  "Public Sans",
+  "Atkinson Hyperlegible",
+  "Commissioner",
+  "Fraunces",
+  "Libre Franklin",
+  "Inconsolata",
+  "Victor Mono",
+  "Bitter",
+  "Crimson Text",
+  "Crimson Pro",
+  "Cormorant",
+  "Cormorant Garamond",
+  "Libre Baskerville",
+  "Lora",
+  "Spectral",
+  "EB Garamond",
+  "DM Serif Text",
+  "Bodoni Moda",
+  // Additional commonly used Google Fonts
+  "Oswald",
+  "Source Serif Pro",
+  "Nunito Sans",
+  "Exo 2",
+  "Titillium Web",
+  "Heebo",
+  "Oxygen",
+  "Dosis",
+  "Hind",
+  "Arimo",
+  "Nanum Gothic",
+  "Libre Caslon Text",
+  "Bebas Neue",
+  "Abel",
+  "Anton",
+  "Pacifico",
+  "Shadows Into Light",
+  "Indie Flower",
+  "Dancing Script",
+  "Permanent Marker",
+  "Amatic SC",
+  "Caveat",
+  "Comfortaa",
+  "Righteous",
+  "Russo One",
+  "Signika",
+  "Encode Sans",
+  "Hanken Grotesk",
+  "Albert Sans",
+  "Golos Text",
+  "Noto Sans JP",
+  "Noto Sans KR",
+  "Noto Sans SC",
+  "Noto Sans TC",
+  "Noto Sans Arabic",
+  "Noto Sans Hebrew",
+  "Noto Sans Thai",
+  "Noto Sans Devanagari",
+  "Jost",
+  "Chakra Petch",
+  "Zen Kaku Gothic New",
+  "Tenor Sans",
+  "Schibsted Grotesk",
+  "Geologica",
+  "Gantari",
+  "Switzer",
+  "Mona Sans",
+  "Hubot Sans",
 ]);
 
 const SYSTEM_FONTS = new Set([
@@ -263,10 +359,14 @@ function canAutoResolveScale(n: FigmaNode, parent?: FigmaNode): boolean {
 
 /** Return true if a component instance can be auto-resolved to "flatten"
  *  without user input.  Only surface the decision when the instance has
- *  meaningful variant properties the user might want as React props. */
+ *  meaningful variant properties the user might want as React props,
+ *  or when the name matches a known design system component. */
 function shouldSurfaceComponentInstance(n: FigmaNode): boolean {
+  // Check if it matches a known design system component
+  if (findComponentMapping(n.name)) return true;
+
+  // Original logic: surface if has non-boolean variant props
   if (!n.componentProperties) return false;
-  // Only surface if there are variant props with non-trivial values
   const entries = Object.entries(n.componentProperties);
   if (entries.length === 0) return false;
   // Filter out boolean-only toggles (e.g. "Scrolled: False") — these are
@@ -287,7 +387,10 @@ function shouldSurfaceComponentInstance(n: FigmaNode): boolean {
 // Scanner: walk a node tree and collect decision points
 // ---------------------------------------------------------------------------
 
-export function scanDecisionPoints(node: FigmaNode): DecisionPoint[] {
+export function scanDecisionPoints(
+  node: FigmaNode,
+  imageUrlMap?: Record<string, string>,
+): DecisionPoint[] {
   const points: DecisionPoint[] = [];
   const seenFonts = new Set<string>();
   /** Track image fills by imageRef to avoid duplicate decisions for the
@@ -386,9 +489,10 @@ export function scanDecisionPoints(node: FigmaNode): DecisionPoint[] {
             nodeId: n.id,
             nodeName: n.name,
             type: "unknown-font",
-            message: `Font "${font}" may not be available in Google Fonts`,
+            message: `Font "${font}" is not in the standard font catalog — you may need to self-host or use a CDN (Adobe Fonts, Fontsource)`,
             options: DECISION_OPTIONS["unknown-font"],
             defaultOptionId: DECISION_DEFAULTS["unknown-font"],
+            metadata: { fontFamily: font },
           });
         }
       }

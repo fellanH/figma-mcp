@@ -4,6 +4,7 @@ import {
   cssToTailwind,
   collectFonts,
   googleFontsImport,
+  generateFontFaceDeclarations,
 } from "../lib/figma-to-css";
 import {
   nodeToHTML,
@@ -201,6 +202,7 @@ export function HtmlPreview() {
     viewportPreset,
     bgMode,
     decisions,
+    decisionPoints,
     setDecisionPoints,
   } = useFigmaStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -236,6 +238,10 @@ export function HtmlPreview() {
     if (!selectedNode) return "";
     return nodeToReact(selectedNode, decisions);
   }, [selectedNode, decisions]);
+
+  const fontFaceCSS = useMemo(() => {
+    return generateFontFaceDeclarations(decisionPoints, decisions);
+  }, [decisionPoints, decisions]);
 
   const livePreview = useMemo(() => {
     if (!selectedNode) return { html: "", css: "", fontImport: "" };
@@ -275,7 +281,7 @@ export function HtmlPreview() {
     img { max-width: 100%; display: block; }
     h1, h2, h3, h4, h5, h6 { margin: 0; }
     p { margin: 0; }
-  </style>
+  </style>${fontFaceCSS ? `\n  <style>\n${fontFaceCSS}\n  </style>` : ""}
   <style>
 ${livePreview.css}
   </style>
@@ -285,7 +291,7 @@ ${livePreview.css}
         doc.close();
       }
     }
-  }, [previewTab, livePreview, bgMode]);
+  }, [previewTab, livePreview, bgMode, fontFaceCSS]);
 
   if (!selectedNode) {
     return (
@@ -307,7 +313,7 @@ ${livePreview.css}
       language = "html";
       break;
     case "css":
-      content = cssText;
+      content = fontFaceCSS ? fontFaceCSS + "\n\n" + cssText : cssText;
       language = "css";
       break;
     case "tailwind":
@@ -318,7 +324,9 @@ ${livePreview.css}
       language = "text";
       break;
     case "react":
-      content = reactCode;
+      content = fontFaceCSS
+        ? `/* Font declarations needed — add to your global CSS:\n${fontFaceCSS}\n*/\n\n${reactCode}`
+        : reactCode;
       language = "jsx";
       break;
     default:

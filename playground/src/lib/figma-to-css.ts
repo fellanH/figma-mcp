@@ -4,6 +4,7 @@ import type {
   FigmaFill,
   FigmaEffect,
 } from "../types/figma";
+import type { DecisionPoint } from "./decision-gates";
 
 function colorToRgba(c: FigmaColor): string {
   const r = Math.round(c.r * 255);
@@ -84,7 +85,11 @@ function mapBlendMode(mode?: string): string {
 }
 
 /** Convert a single fill to a CSS background layer string. */
-function fillToBgLayer(fill: FigmaFill, node?: FigmaNode): string | undefined {
+function fillToBgLayer(
+  fill: FigmaFill,
+  node?: FigmaNode,
+  imageUrlMap?: Record<string, string>,
+): string | undefined {
   if (fill.visible === false) return undefined;
   const fillOpacity = fill.opacity ?? 1;
 
@@ -208,6 +213,11 @@ function fillToBgLayer(fill: FigmaFill, node?: FigmaNode): string | undefined {
   }
 
   if (fill.type === "IMAGE") {
+    // Use resolved Figma CDN URL when available
+    if (fill.imageRef && imageUrlMap?.[fill.imageRef]) {
+      return `url("${imageUrlMap[fill.imageRef]}")`;
+    }
+    // Fallback to placeholder SVG
     const w = Math.round(node?.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node?.absoluteBoundingBox?.height ?? 100);
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><rect width='100%' height='100%' fill='%23e4e4e7'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23a1a1aa' font-family='sans-serif' font-size='12'>${w}×${h}</text></svg>`;
@@ -237,6 +247,7 @@ export function figmaToCSS(
   parentNode?: FigmaNode,
   isRoot = false,
   childIndex?: number,
+  imageUrlMap?: Record<string, string>,
 ): CSSProperties {
   const css: CSSProperties = {};
 
@@ -438,7 +449,7 @@ export function figmaToCSS(
     let bgSize: string | undefined;
 
     for (const fill of reversed) {
-      const layer = fillToBgLayer(fill, node);
+      const layer = fillToBgLayer(fill, node, imageUrlMap);
       if (!layer) continue;
 
       // Solid colors need gradient form to participate in multi-layer backgrounds
@@ -475,9 +486,10 @@ export function figmaToCSS(
     if (bgLayers.length === 1 && visibleFills[0]?.type === "SOLID") {
       // TEXT nodes use color, not background-color
       if (node.type === "TEXT") {
-        css["color"] = fillToBgLayer(visibleFills[0], node) ?? "";
+        css["color"] = fillToBgLayer(visibleFills[0], node, imageUrlMap) ?? "";
       } else {
-        css["background-color"] = fillToBgLayer(visibleFills[0], node) ?? "";
+        css["background-color"] =
+          fillToBgLayer(visibleFills[0], node, imageUrlMap) ?? "";
       }
     } else if (bgLayers.length > 0) {
       css["background"] = bgLayers.join(", ");
@@ -1300,6 +1312,67 @@ export function googleFontsImport(families: string[]): string {
     )
     .join("&");
   return `@import url('https://fonts.googleapis.com/css2?${params}&display=swap');`;
+}
+
+// ---------------------------------------------------------------------------
+// @font-face declaration generator
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate @font-face declarations for fonts with "generate-font-face" decision.
+ * Returns a CSS string with @font-face blocks and hosting guidance comments.
+ */
+export function generateFontFaceDeclarations(
+  decisionPoints: DecisionPoint[],
+  decisions: Map<string, string>,
+): string {
+  const fontFaceBlocks: string[] = [];
+
+  for (const point of decisionPoints) {
+    if (point.type !== "unknown-font") continue;
+    const choice = decisions.get(point.key) ?? point.defaultOptionId;
+    if (choice !== "generate-font-face") continue;
+
+    const fontFamily = point.metadata?.fontFamily ?? point.nodeName;
+    const safeName = fontFamily.replace(/\s+/g, "");
+    const slug = fontFamily.toLowerCase().replace(/\s+/g, "-");
+
+    const weights = [
+      { weight: 300, style: "normal", suffix: "Light" },
+      { weight: 400, style: "normal", suffix: "Regular" },
+      { weight: 500, style: "normal", suffix: "Medium" },
+      { weight: 600, style: "normal", suffix: "SemiBold" },
+      { weight: 700, style: "normal", suffix: "Bold" },
+    ];
+
+    fontFaceBlocks.push(
+      `/* ─── ${fontFamily} ───\n` +
+        ` * TODO: Add font files for "${fontFamily}"\n` +
+        ` *\n` +
+        ` * Sources to check:\n` +
+        ` *   - Adobe Fonts: https://fonts.adobe.com/\n` +
+        ` *   - Fontsource:  https://fontsource.org/fonts/${slug}\n` +
+        ` *   - Google Fonts: https://fonts.google.com/?query=${encodeURIComponent(fontFamily)}\n` +
+        ` *   - Commercial:  Check the font foundry for licensing\n` +
+        ` *\n` +
+        ` * Place .woff2 files in ./fonts/ and update the src paths below.\n` +
+        ` */`,
+    );
+
+    for (const { weight, style, suffix } of weights) {
+      fontFaceBlocks.push(
+        `@font-face {\n` +
+          `  font-family: "${fontFamily}";\n` +
+          `  font-weight: ${weight};\n` +
+          `  font-style: ${style};\n` +
+          `  font-display: swap;\n` +
+          `  src: url("./fonts/${safeName}-${suffix}.woff2") format("woff2");\n` +
+          `}`,
+      );
+    }
+  }
+
+  return fontFaceBlocks.join("\n\n");
 }
 
 export { colorToHex, colorToRgba };
