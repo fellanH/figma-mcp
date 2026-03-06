@@ -143,6 +143,10 @@ export interface FigmaNode {
     horizontal: string;
   };
 
+  // Transform
+  rotation?: number; // degrees, counter-clockwise (Figma convention)
+  relativeTransform?: [[number, number, number], [number, number, number]]; // 2x3 affine matrix
+
   // Blend
   blendMode?: string;
 

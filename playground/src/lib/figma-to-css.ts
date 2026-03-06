@@ -390,6 +390,40 @@ export function figmaToCSS(
     css["overflow"] = "hidden";
   }
 
+  // Transform / Rotation (#5)
+  // Figma rotation is counter-clockwise in degrees; CSS rotate() is clockwise — negate.
+  // If a full relativeTransform matrix is present and is non-trivial (has skew/scale beyond
+  // a pure rotation), emit a CSS matrix() to preserve the full affine transform.
+  if (node.relativeTransform) {
+    const [[a, b, tx], [c, d, ty]] = node.relativeTransform;
+    // Detect pure rotation (no skew, scale ≈ 1): |a|≈|d| and b≈-c and scale≈1
+    const scale = Math.sqrt(a * a + c * c);
+    const isPureRotation =
+      Math.abs(scale - 1) < 0.001 &&
+      Math.abs(a - d) < 0.001 &&
+      Math.abs(b + c) < 0.001;
+
+    if (isPureRotation) {
+      // Use simple rotate() — negate because Figma is CCW, CSS is CW
+      const deg = -Math.round(Math.atan2(c, a) * (180 / Math.PI));
+      if (deg !== 0) {
+        css["transform"] = `rotate(${deg}deg)`;
+        css["transform-origin"] = "center";
+      }
+    } else {
+      // Complex matrix: Figma [[a,b,tx],[c,d,ty]] → CSS matrix(a,c,b,d,tx,ty)
+      const fmt = (n: number) => parseFloat(n.toFixed(4));
+      css["transform"] =
+        `matrix(${fmt(a)},${fmt(c)},${fmt(b)},${fmt(d)},${fmt(tx)},${fmt(ty)})`;
+      css["transform-origin"] = "center";
+    }
+  } else if (node.rotation !== undefined && node.rotation !== 0) {
+    // Fallback: rotation-only property (no matrix available)
+    const deg = -Math.round(node.rotation);
+    css["transform"] = `rotate(${deg}deg)`;
+    css["transform-origin"] = "center";
+  }
+
   // Typography
   if (node.type === "TEXT" && node.style) {
     const s = node.style;
@@ -680,6 +714,23 @@ export function cssToTailwind(css: CSSProperties): string[] {
     "-webkit-line-clamp": () => {
       const n = parseInt(css["-webkit-line-clamp"] ?? "");
       if (!isNaN(n) && n > 0) classes.push(`line-clamp-${n}`);
+    },
+    transform: () => {
+      const val = css["transform"];
+      if (!val) return;
+      // Pure rotate: rotate(Ndeg) → rotate-[Ndeg]
+      const rotateMatch = val.match(/^rotate\((-?\d+(?:\.\d+)?deg)\)$/);
+      if (rotateMatch) {
+        classes.push(`rotate-[${rotateMatch[1]}]`);
+      } else {
+        // Complex matrix or other transform → arbitrary value
+        classes.push(`[transform:${val.replace(/ /g, "_")}]`);
+      }
+    },
+    "transform-origin": () => {
+      const val = css["transform-origin"];
+      if (val === "center") classes.push("origin-center");
+      else if (val) classes.push(`origin-[${val.replace(/ /g, "_")}]`);
     },
   };
 
