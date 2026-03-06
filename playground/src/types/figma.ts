@@ -16,6 +16,7 @@ export interface FigmaFill {
     | "GRADIENT_LINEAR"
     | "GRADIENT_RADIAL"
     | "GRADIENT_ANGULAR"
+    | "GRADIENT_DIAMOND"
     | "IMAGE";
   blendMode: string;
   color?: FigmaColor;

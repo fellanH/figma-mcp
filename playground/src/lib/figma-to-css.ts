@@ -115,6 +115,98 @@ function fillToBgLayer(fill: FigmaFill, node?: FigmaNode): string | undefined {
     return `linear-gradient(${angle}, ${stops})`;
   }
 
+  if (fill.type === "GRADIENT_RADIAL" && fill.gradientStops) {
+    const stops = fill.gradientStops
+      .map((s) => {
+        const c = { ...s.color, a: s.color.a * fillOpacity };
+        return `${colorToRgba(c)} ${Math.round(s.position * 100)}%`;
+      })
+      .join(", ");
+
+    // gradientHandlePositions[0] = center, [1] = edge along x-radius,
+    // [2] = edge along y-radius (if present)
+    let position = "50% 50%";
+    let shape = "ellipse";
+    if (
+      fill.gradientHandlePositions &&
+      fill.gradientHandlePositions.length >= 2
+    ) {
+      const [center, edgeX, edgeY] = fill.gradientHandlePositions;
+      const cx = Math.round(center.x * 100);
+      const cy = Math.round(center.y * 100);
+      position = `${cx}% ${cy}%`;
+
+      // Compute radii in normalised space
+      const rx = Math.sqrt(
+        Math.pow(edgeX.x - center.x, 2) + Math.pow(edgeX.y - center.y, 2),
+      );
+      if (edgeY) {
+        const ry = Math.sqrt(
+          Math.pow(edgeY.x - center.x, 2) + Math.pow(edgeY.y - center.y, 2),
+        );
+        // If radii are equal enough treat as circle
+        shape =
+          Math.abs(rx - ry) < 0.01
+            ? "circle"
+            : `ellipse ${(rx * 100).toFixed(1)}% ${(ry * 100).toFixed(1)}%`;
+      } else {
+        shape = `circle ${(rx * 100).toFixed(1)}%`;
+      }
+    }
+    return `radial-gradient(${shape} at ${position}, ${stops})`;
+  }
+
+  if (fill.type === "GRADIENT_ANGULAR" && fill.gradientStops) {
+    // CSS conic-gradient goes 0 → 360 deg; Figma stops are 0 → 1 mapped to 0 → 360.
+    // The starting angle comes from the vector between handle[0] (center) and handle[1].
+    let fromAngle = "0deg";
+    let position = "50% 50%";
+    if (
+      fill.gradientHandlePositions &&
+      fill.gradientHandlePositions.length >= 2
+    ) {
+      const [center, startHandle] = fill.gradientHandlePositions;
+      const dx = startHandle.x - center.x;
+      const dy = startHandle.y - center.y;
+      // atan2 gives angle from positive-x axis; CSS conic-gradient starts at top (12 o'clock)
+      const rad = Math.atan2(dy, dx);
+      const deg = Math.round((rad * 180) / Math.PI + 90);
+      fromAngle = `${((deg % 360) + 360) % 360}deg`;
+      const cx = Math.round(center.x * 100);
+      const cy = Math.round(center.y * 100);
+      position = `${cx}% ${cy}%`;
+    }
+    const stops = fill.gradientStops
+      .map((s) => {
+        const c = { ...s.color, a: s.color.a * fillOpacity };
+        return `${colorToRgba(c)} ${Math.round(s.position * 360)}deg`;
+      })
+      .join(", ");
+    return `conic-gradient(from ${fromAngle} at ${position}, ${stops})`;
+  }
+
+  // GRADIENT_DIAMOND has no direct CSS equivalent — approximate with a radial gradient.
+  if (fill.type === "GRADIENT_DIAMOND" && fill.gradientStops) {
+    const stops = fill.gradientStops
+      .map((s) => {
+        const c = { ...s.color, a: s.color.a * fillOpacity };
+        return `${colorToRgba(c)} ${Math.round(s.position * 100)}%`;
+      })
+      .join(", ");
+    let position = "50% 50%";
+    if (
+      fill.gradientHandlePositions &&
+      fill.gradientHandlePositions.length >= 1
+    ) {
+      const center = fill.gradientHandlePositions[0];
+      const cx = Math.round(center.x * 100);
+      const cy = Math.round(center.y * 100);
+      position = `${cx}% ${cy}%`;
+    }
+    // Use an ellipse radial approximation — closest CSS equivalent for diamond shape
+    return `radial-gradient(ellipse at ${position}, ${stops})`;
+  }
+
   if (fill.type === "IMAGE") {
     const w = Math.round(node?.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node?.absoluteBoundingBox?.height ?? 100);
