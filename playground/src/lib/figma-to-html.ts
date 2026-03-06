@@ -1,5 +1,5 @@
 import type { FigmaNode, FigmaTypeStyle } from "../types/figma";
-import { figmaToCSS, cssToString } from "./figma-to-css";
+import { figmaToCSS, cssToString, cssToTailwind } from "./figma-to-css";
 
 function inferElement(node: FigmaNode, isRoot = false): string {
   // Root frame (page-level) maps to <body>
@@ -104,6 +104,85 @@ function overrideToInlineStyle(
     parts.push(`letter-spacing:${override.letterSpacing}px`);
   }
   return parts.join("; ");
+}
+
+/** Build a CSSProperties dict for a style override diff against the base style. */
+function overrideToCSS(
+  base: FigmaTypeStyle,
+  override: Partial<FigmaTypeStyle>,
+): import("./figma-to-css").CSSProperties {
+  const css: import("./figma-to-css").CSSProperties = {};
+  if (override.fontFamily && override.fontFamily !== base.fontFamily) {
+    css["font-family"] = `"${override.fontFamily}", sans-serif`;
+  }
+  if (
+    override.fontWeight !== undefined &&
+    override.fontWeight !== base.fontWeight
+  ) {
+    css["font-weight"] = String(override.fontWeight);
+  }
+  if (override.fontSize !== undefined && override.fontSize !== base.fontSize) {
+    css["font-size"] = `${override.fontSize}px`;
+  }
+  if (override.italic !== undefined && override.italic !== base.italic) {
+    css["font-style"] = override.italic ? "italic" : "normal";
+  }
+  if (
+    override.textDecoration &&
+    override.textDecoration !== base.textDecoration
+  ) {
+    if (override.textDecoration === "UNDERLINE")
+      css["text-decoration"] = "underline";
+    else if (override.textDecoration === "STRIKETHROUGH")
+      css["text-decoration"] = "line-through";
+  }
+  if (
+    override.letterSpacing !== undefined &&
+    override.letterSpacing !== base.letterSpacing
+  ) {
+    css["letter-spacing"] = `${override.letterSpacing}px`;
+  }
+  return css;
+}
+
+/** Render text content with characterStyleOverrides as JSX <span> elements.
+ *  Each run's override diff is converted to Tailwind className strings. */
+function renderTextContentJSX(node: FigmaNode): string {
+  const text = node.characters ?? node.name;
+  const overrides = node.characterStyleOverrides;
+  const table = node.styleOverrideTable;
+  const base = node.style;
+
+  if (!overrides?.length || !table || !base) {
+    return escapeHtml(text);
+  }
+
+  // Group consecutive characters by their style override ID
+  const segments: { styleId: number; text: string }[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const styleId = i < overrides.length ? overrides[i] : 0;
+    if (
+      segments.length > 0 &&
+      segments[segments.length - 1].styleId === styleId
+    ) {
+      segments[segments.length - 1].text += text[i];
+    } else {
+      segments.push({ styleId, text: text[i] });
+    }
+  }
+
+  return segments
+    .map((seg) => {
+      const escaped = escapeHtml(seg.text);
+      if (seg.styleId === 0) return escaped;
+      const override = table[String(seg.styleId)];
+      if (!override) return escaped;
+      const css = overrideToCSS(base, override);
+      const classes = cssToTailwind(css);
+      if (classes.length === 0) return escaped;
+      return `<span className="${classes.join(" ")}">${escaped}</span>`;
+    })
+    .join("");
 }
 
 /** Render text content with characterStyleOverrides as <span> elements (#34). */
@@ -244,6 +323,72 @@ export function nodeToHTMLWithCSS(
     ...children,
     `${indent(depth)}</${tag}>`,
   ].join("\n");
+}
+
+function toPascalCase(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join("");
+}
+
+function nodeToReactInner(
+  node: FigmaNode,
+  depth = 0,
+  isRoot = true,
+  parentNode?: FigmaNode,
+): string {
+  if (node.visible === false) return "";
+
+  let tag = inferElement(node, isRoot);
+  // Map body → div for React components
+  if (tag === "body") tag = "div";
+
+  const css = figmaToCSS(node, parentNode, isRoot);
+  const tw = cssToTailwind(css);
+  const classAttr = tw.length > 0 ? ` className="${tw.join(" ")}"` : "";
+
+  if (node.type === "TEXT") {
+    const content = renderTextContentJSX(node);
+    if (tag === "a") {
+      return `${indent(depth)}<${tag} href="#"${classAttr}>${content}</${tag}>`;
+    }
+    return `${indent(depth)}<${tag}${classAttr}>${content}</${tag}>`;
+  }
+
+  if (tag === "img") {
+    const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
+    const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
+    return `${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}" alt="${escapeHtml(node.name)}" width={${w}} height={${h}} />`;
+  }
+
+  if (tag === "hr" || tag === "svg") {
+    return `${indent(depth)}<${tag}${classAttr} />`;
+  }
+
+  const children = (node.children ?? [])
+    .filter((c) => c.visible !== false)
+    .map((c) => nodeToReactInner(c, depth + 1, false, node))
+    .filter(Boolean);
+
+  if (children.length === 0) {
+    return `${indent(depth)}<${tag}${classAttr} />`;
+  }
+
+  return [
+    `${indent(depth)}<${tag}${classAttr}>`,
+    ...children,
+    `${indent(depth)}</${tag}>`,
+  ].join("\n");
+}
+
+export function nodeToReact(node: FigmaNode): string {
+  const componentName = toPascalCase(node.name) || "Component";
+  const jsx = nodeToReactInner(node, 2, true);
+
+  return `export default function ${componentName}() {\n  return (\n${jsx}\n  );\n}`;
 }
 
 export { inferElement };
