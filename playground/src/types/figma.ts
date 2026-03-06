@@ -63,6 +63,8 @@ export interface FigmaTypeStyle {
   // Text truncation
   textTruncation?: "DISABLED" | "ENDING";
   maxLines?: number;
+  // Paragraph spacing (gap between paragraphs in multi-paragraph text)
+  paragraphSpacing?: number;
 }
 
 export interface FigmaNode {

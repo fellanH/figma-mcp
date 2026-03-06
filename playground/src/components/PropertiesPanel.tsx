@@ -24,7 +24,7 @@ function Section({
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {title}
       </button>
-      {open && <div className="px-3 pb-3">{children}</div>}
+      {open && <div className="px-3 py-3">{children}</div>}
     </div>
   );
 }
@@ -40,10 +40,12 @@ function PropRow({
 }) {
   return (
     <div className="flex items-start gap-2 text-xs py-0.5">
-      <span className="text-text-dim w-28 flex-none truncate">{label}</span>
-      <span className="flex-1 min-w-0 break-all">{value}</span>
+      <span className="text-text-dim w-20 flex-none truncate">{label}</span>
+      <span className="flex-1 min-w-12 break-all">{value}</span>
       {css && (
-        <span className="text-accent text-[10px] flex-none">→ {css}</span>
+        <span className="text-accent text-[10px] flex-none max-w-[45%] truncate">
+          → {css}
+        </span>
       )}
     </div>
   );
@@ -141,19 +143,16 @@ export function PropertiesPanel() {
           <PropRow
             label="direction"
             value={node.layoutMode}
-            css={`
-              flex-direction: ${node.layoutMode === "VERTICAL"
-                ? "column"
-                : "row"};
-            `}
+            css={
+              "flex-direction: " +
+              (node.layoutMode === "VERTICAL" ? "column" : "row")
+            }
           />
           {node.itemSpacing !== undefined && (
             <PropRow
               label="gap"
               value={String(node.itemSpacing)}
-              css={`
-                gap: ${node.itemSpacing}px;
-              `}
+              css={"gap: " + node.itemSpacing + "px"}
             />
           )}
           {node.layoutWrap === "WRAP" && (
@@ -221,18 +220,14 @@ export function PropertiesPanel() {
             <PropRow
               label="min-width"
               value={`${node.minWidth}`}
-              css={`
-                min-width: ${node.minWidth}px;
-              `}
+              css={"min-width: " + node.minWidth + "px"}
             />
           )}
           {node.maxWidth !== undefined && (
             <PropRow
               label="max-width"
               value={`${node.maxWidth}`}
-              css={`
-                max-width: ${node.maxWidth}px;
-              `}
+              css={"max-width: " + node.maxWidth + "px"}
             />
           )}
         </Section>
@@ -307,31 +302,23 @@ export function PropertiesPanel() {
           <PropRow
             label="font"
             value={node.style.fontFamily}
-            css={`
-              font-family: "${node.style.fontFamily}";
-            `}
+            css={'font-family: "' + node.style.fontFamily + '"'}
           />
           <PropRow
             label="size"
             value={`${node.style.fontSize}px`}
-            css={`
-              font-size: ${node.style.fontSize}px;
-            `}
+            css={"font-size: " + node.style.fontSize + "px"}
           />
           <PropRow
             label="weight"
             value={String(node.style.fontWeight)}
-            css={`
-              font-weight: ${node.style.fontWeight};
-            `}
+            css={"font-weight: " + node.style.fontWeight}
           />
           {node.style.lineHeightPx && (
             <PropRow
               label="line-height"
               value={`${node.style.lineHeightPx}px`}
-              css={`
-                line-height: ${node.style.lineHeightPx}px;
-              `}
+              css={"line-height: " + node.style.lineHeightPx + "px"}
             />
           )}
           {node.style.letterSpacing !== undefined &&
@@ -339,18 +326,16 @@ export function PropertiesPanel() {
               <PropRow
                 label="letter-spacing"
                 value={`${node.style.letterSpacing}px`}
-                css={`
-                  letter-spacing: ${node.style.letterSpacing}px;
-                `}
+                css={"letter-spacing: " + node.style.letterSpacing + "px"}
               />
             )}
           {node.style.textAlignHorizontal && (
             <PropRow
               label="text-align"
               value={node.style.textAlignHorizontal}
-              css={`
-                text-align: ${node.style.textAlignHorizontal.toLowerCase()};
-              `}
+              css={
+                "text-align: " + node.style.textAlignHorizontal.toLowerCase()
+              }
             />
           )}
           {node.style.textCase && node.style.textCase !== "ORIGINAL" && (
@@ -428,9 +413,7 @@ export function PropertiesPanel() {
             <PropRow
               label="radius"
               value={`${node.cornerRadius}px`}
-              css={`
-                border-radius: ${node.cornerRadius}px;
-              `}
+              css={"border-radius: " + node.cornerRadius + "px"}
             />
           )}
         </Section>
@@ -462,9 +445,7 @@ export function PropertiesPanel() {
             <PropRow
               label="opacity"
               value={String(node.opacity)}
-              css={`
-                opacity: ${node.opacity};
-              `}
+              css={"opacity: " + node.opacity}
             />
           )}
           {node.clipsContent && (

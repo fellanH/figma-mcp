@@ -236,6 +236,7 @@ export function figmaToCSS(
   node: FigmaNode,
   parentNode?: FigmaNode,
   isRoot = false,
+  childIndex?: number,
 ): CSSProperties {
   const css: CSSProperties = {};
 
@@ -321,9 +322,110 @@ export function figmaToCSS(
     if (node.maxHeight !== undefined) css["max-height"] = `${node.maxHeight}px`;
   } // end !isRoot sizing guard
 
-  // Positioning
+  // Position: relative on parent when any child uses absolute positioning (#1)
+  const hasAbsoluteChild = (node.children ?? []).some(
+    (c) => c.layoutPositioning === "ABSOLUTE" && c.visible !== false,
+  );
+  if (hasAbsoluteChild && !css["position"]) {
+    css["position"] = "relative";
+  }
+
+  // Absolute positioning with offset computation (#1) + constraints (#3)
   if (node.layoutPositioning === "ABSOLUTE") {
     css["position"] = "absolute";
+
+    const parentBbox = parentNode?.absoluteBoundingBox;
+    const childBbox = node.absoluteBoundingBox;
+
+    if (parentBbox && childBbox) {
+      const constraints = node.constraints;
+      const hConstraint = constraints?.horizontal ?? "MIN";
+      const vConstraint = constraints?.vertical ?? "MIN";
+
+      // Horizontal constraint
+      switch (hConstraint) {
+        case "MIN":
+          css["left"] = `${Math.round(childBbox.x - parentBbox.x)}px`;
+          break;
+        case "MAX":
+          css["right"] =
+            `${Math.round(parentBbox.x + parentBbox.width - (childBbox.x + childBbox.width))}px`;
+          break;
+        case "CENTER": {
+          const centerOffset = Math.round(
+            childBbox.x -
+              parentBbox.x -
+              (parentBbox.width - childBbox.width) / 2,
+          );
+          if (Math.abs(centerOffset) < 1) {
+            css["left"] = "50%";
+            css["margin-left"] = `-${Math.round(childBbox.width / 2)}px`;
+          } else {
+            css["left"] = `${Math.round(childBbox.x - parentBbox.x)}px`;
+          }
+          break;
+        }
+        case "STRETCH":
+          css["left"] = `${Math.round(childBbox.x - parentBbox.x)}px`;
+          css["right"] =
+            `${Math.round(parentBbox.x + parentBbox.width - (childBbox.x + childBbox.width))}px`;
+          // Width is driven by left+right, remove explicit width
+          delete css["width"];
+          break;
+        case "SCALE": {
+          const leftPct =
+            ((childBbox.x - parentBbox.x) / parentBbox.width) * 100;
+          const widthPct = (childBbox.width / parentBbox.width) * 100;
+          css["left"] = `${leftPct.toFixed(1)}%`;
+          css["width"] = `${widthPct.toFixed(1)}%`;
+          break;
+        }
+      }
+
+      // Vertical constraint
+      switch (vConstraint) {
+        case "MIN":
+          css["top"] = `${Math.round(childBbox.y - parentBbox.y)}px`;
+          break;
+        case "MAX":
+          css["bottom"] =
+            `${Math.round(parentBbox.y + parentBbox.height - (childBbox.y + childBbox.height))}px`;
+          break;
+        case "CENTER": {
+          const centerOffset = Math.round(
+            childBbox.y -
+              parentBbox.y -
+              (parentBbox.height - childBbox.height) / 2,
+          );
+          if (Math.abs(centerOffset) < 1) {
+            css["top"] = "50%";
+            css["margin-top"] = `-${Math.round(childBbox.height / 2)}px`;
+          } else {
+            css["top"] = `${Math.round(childBbox.y - parentBbox.y)}px`;
+          }
+          break;
+        }
+        case "STRETCH":
+          css["top"] = `${Math.round(childBbox.y - parentBbox.y)}px`;
+          css["bottom"] =
+            `${Math.round(parentBbox.y + parentBbox.height - (childBbox.y + childBbox.height))}px`;
+          delete css["height"];
+          break;
+        case "SCALE": {
+          const topPct =
+            ((childBbox.y - parentBbox.y) / parentBbox.height) * 100;
+          const heightPct = (childBbox.height / parentBbox.height) * 100;
+          css["top"] = `${topPct.toFixed(1)}%`;
+          css["height"] = `${heightPct.toFixed(1)}%`;
+          break;
+        }
+      }
+    }
+
+    // Z-index based on child order (#8) — last child = highest z-index
+    if (childIndex !== undefined) {
+      css["z-index"] = String(childIndex);
+    }
   }
 
   // Fills (#31: composite stacking, #32: per-fill opacity + blend, #35: image placeholders)
@@ -349,7 +451,24 @@ export function figmaToCSS(
       blendModes.push(mapBlendMode(fill.blendMode));
 
       if (fill.type === "IMAGE") {
-        bgSize = fill.scaleMode === "FILL" ? "cover" : "contain";
+        switch (fill.scaleMode) {
+          case "FILL":
+            bgSize = "cover";
+            break;
+          case "FIT":
+            bgSize = "contain";
+            css["background-repeat"] = "no-repeat";
+            css["background-position"] = "center";
+            break;
+          case "TILE":
+            bgSize = undefined; // natural size, repeating
+            css["background-repeat"] = "repeat";
+            break;
+          case "CROP":
+          default:
+            bgSize = "cover";
+            break;
+        }
       }
     }
 
@@ -539,6 +658,24 @@ export function figmaToCSS(
     if (s.textDecoration === "UNDERLINE") css["text-decoration"] = "underline";
     if (s.textDecoration === "STRIKETHROUGH")
       css["text-decoration"] = "line-through";
+
+    // Paragraph spacing (#14) — applied as margin-bottom on the text block
+    if (s.paragraphSpacing && s.paragraphSpacing > 0) {
+      css["margin-bottom"] = `${s.paragraphSpacing}px`;
+    }
+
+    // Text vertical alignment (#14)
+    if (s.textAlignVertical) {
+      // For fixed-height text containers, vertical alignment maps to flexbox
+      if (s.textAlignVertical === "CENTER") {
+        css["display"] = "flex";
+        css["align-items"] = "center";
+      } else if (s.textAlignVertical === "BOTTOM") {
+        css["display"] = "flex";
+        css["align-items"] = "flex-end";
+      }
+      // TOP is default — no extra CSS needed
+    }
 
     // Text truncation (#7)
     if (s.textTruncation === "ENDING") {
@@ -815,6 +952,51 @@ export function cssToTailwind(css: CSSProperties): string[] {
     },
     position: () => {
       if (css["position"] === "absolute") classes.push("absolute");
+      if (css["position"] === "relative") classes.push("relative");
+    },
+    top: () => {
+      const val = css["top"];
+      if (val === "50%") {
+        classes.push("top-1/2");
+      } else if (val) {
+        classes.push(snapDimension(val, "top"));
+      }
+    },
+    left: () => {
+      const val = css["left"];
+      if (val === "50%") {
+        classes.push("left-1/2");
+      } else if (val) {
+        classes.push(snapDimension(val, "left"));
+      }
+    },
+    right: () => {
+      const val = css["right"];
+      if (val) classes.push(snapDimension(val, "right"));
+    },
+    bottom: () => {
+      const val = css["bottom"];
+      if (val) classes.push(snapDimension(val, "bottom"));
+    },
+    "z-index": () => {
+      const val = css["z-index"];
+      if (val) classes.push(`z-[${val}]`);
+    },
+    "margin-left": () => {
+      const val = css["margin-left"];
+      if (val) classes.push(`ml-[${val}]`);
+    },
+    "margin-top": () => {
+      const val = css["margin-top"];
+      if (val) classes.push(`mt-[${val}]`);
+    },
+    "margin-bottom": () => {
+      const val = css["margin-bottom"];
+      if (val) {
+        const px = parseInt(val);
+        const token = !isNaN(px) ? snapSpacing(px) : undefined;
+        classes.push(token !== undefined ? `mb-${token}` : `mb-[${val}]`);
+      }
     },
     "flex-grow": () => {
       if (css["flex-grow"] === "1") classes.push("grow");
@@ -849,6 +1031,22 @@ export function cssToTailwind(css: CSSProperties): string[] {
     "background-color": () => {
       const val = css["background-color"];
       if (val) classes.push(`bg-[${val.replace(/ /g, "_")}]`);
+    },
+    "background-size": () => {
+      const val = css["background-size"];
+      if (val === "cover") classes.push("bg-cover");
+      else if (val === "contain") classes.push("bg-contain");
+      else if (val) classes.push(`bg-[size:${val.replace(/ /g, "_")}]`);
+    },
+    "background-repeat": () => {
+      const val = css["background-repeat"];
+      if (val === "no-repeat") classes.push("bg-no-repeat");
+      else if (val === "repeat") classes.push("bg-repeat");
+    },
+    "background-position": () => {
+      const val = css["background-position"];
+      if (val === "center") classes.push("bg-center");
+      else if (val) classes.push(`bg-[position:${val.replace(/ /g, "_")}]`);
     },
     color: () => {
       const val = css["color"];
@@ -1048,6 +1246,60 @@ export function cssToTailwind(css: CSSProperties): string[] {
   }
 
   return classes;
+}
+
+/** Collect all unique font families used in a node subtree (#10). */
+export function collectFonts(node: FigmaNode): string[] {
+  const fonts = new Set<string>();
+
+  function walk(n: FigmaNode) {
+    if (n.visible === false) return;
+    if (n.type === "TEXT" && n.style?.fontFamily) {
+      fonts.add(n.style.fontFamily);
+    }
+    // Also check style overrides for different fonts in mixed-style text
+    if (n.styleOverrideTable) {
+      for (const override of Object.values(n.styleOverrideTable)) {
+        if (override.fontFamily) fonts.add(override.fontFamily);
+      }
+    }
+    for (const child of n.children ?? []) {
+      walk(child);
+    }
+  }
+
+  walk(node);
+  return [...fonts].sort();
+}
+
+/** Build a Google Fonts @import URL for the given font families. */
+export function googleFontsImport(families: string[]): string {
+  if (families.length === 0) return "";
+  // Filter out system/generic fonts
+  const systemFonts = new Set([
+    "system-ui",
+    "sans-serif",
+    "serif",
+    "monospace",
+    "cursive",
+    "fantasy",
+    "Arial",
+    "Helvetica",
+    "Times New Roman",
+    "Courier New",
+    "Georgia",
+    "Verdana",
+    "Tahoma",
+  ]);
+  const googleFonts = families.filter((f) => !systemFonts.has(f));
+  if (googleFonts.length === 0) return "";
+  const params = googleFonts
+    .map(
+      (f) =>
+        `family=${f.replace(/ /g, "+")}:wght@100;200;300;400;500;600;700;800;900`,
+    )
+    .join("&");
+  return `@import url('https://fonts.googleapis.com/css2?${params}&display=swap');`;
 }
 
 export { colorToHex, colorToRgba };

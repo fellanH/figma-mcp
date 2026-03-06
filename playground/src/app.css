@@ -48,3 +48,9 @@ body {
 .tree-indent {
   border-left: 1px solid var(--color-border);
 }
+
+/* Checkerboard background for alpha preview */
+.bg-checker {
+  background: repeating-conic-gradient(#808080 0% 25%, #a0a0a0 0% 50%) 0 0 /
+    16px 16px;
+}

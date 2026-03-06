@@ -2,7 +2,9 @@ import { create } from "zustand";
 import type { FigmaNode, FigmaFileResponse, SampleFile } from "../types/figma";
 import { extractRootNode } from "../lib/tree-utils";
 
-export type PreviewTab = "html" | "css" | "tailwind" | "live";
+export type PreviewTab = "html" | "css" | "tailwind" | "react" | "live";
+export type ViewportPreset = "mobile" | "tablet" | "desktop" | "full";
+export type BgMode = "dark" | "light" | "checker";
 
 interface FigmaStore {
   // Data
@@ -19,6 +21,9 @@ interface FigmaStore {
   searchQuery: string;
   previewTab: PreviewTab;
   showRawJson: boolean;
+  zoom: number;
+  viewportPreset: ViewportPreset;
+  bgMode: BgMode;
 
   // Actions
   loadFile: (data: FigmaFileResponse) => void;
@@ -30,6 +35,9 @@ interface FigmaStore {
   toggleRawJson: () => void;
   expandAll: () => void;
   collapseAll: () => void;
+  setZoom: (zoom: number) => void;
+  setViewportPreset: (preset: ViewportPreset) => void;
+  setBgMode: (mode: BgMode) => void;
 }
 
 function collectAllIds(node: FigmaNode): string[] {
@@ -48,6 +56,9 @@ export const useFigmaStore = create<FigmaStore>((set, get) => ({
   searchQuery: "",
   previewTab: "html",
   showRawJson: false,
+  zoom: 100,
+  viewportPreset: "full",
+  bgMode: "dark",
 
   loadFile: (data) => {
     const root = extractRootNode(data);
@@ -88,6 +99,9 @@ export const useFigmaStore = create<FigmaStore>((set, get) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   setPreviewTab: (tab) => set({ previewTab: tab }),
   toggleRawJson: () => set({ showRawJson: !get().showRawJson }),
+  setZoom: (zoom) => set({ zoom: Math.max(25, Math.min(200, zoom)) }),
+  setViewportPreset: (preset) => set({ viewportPreset: preset }),
+  setBgMode: (mode) => set({ bgMode: mode }),
 
   expandAll: () => {
     const root = get().rootNode;

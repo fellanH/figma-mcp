@@ -28,6 +28,12 @@ const SIZING_COLORS: Record<string, string> = {
   FIXED: "bg-tag-fixed/20 text-tag-fixed",
 };
 
+const SIZING_LABEL: Record<string, string> = {
+  FILL: "F",
+  HUG: "H",
+  FIXED: "FX",
+};
+
 export function NodeTreeItem({ node, depth, matchingIds, visibleIds }: Props) {
   const { selectedNodeId, expandedNodes, selectNode, toggleNode } =
     useFigmaStore();
@@ -76,14 +82,14 @@ export function NodeTreeItem({ node, depth, matchingIds, visibleIds }: Props) {
           <span
             className={`flex-none text-[9px] px-1 rounded ${SIZING_COLORS[hSizing] ?? ""}`}
           >
-            {hSizing[0]}
+            {SIZING_LABEL[hSizing] ?? hSizing[0]}
           </span>
         )}
         {vSizing && vSizing !== "FIXED" && (
           <span
             className={`flex-none text-[9px] px-1 rounded ${SIZING_COLORS[vSizing] ?? ""}`}
           >
-            {vSizing[0]}
+            {SIZING_LABEL[vSizing] ?? vSizing[0]}
           </span>
         )}
       </div>

@@ -1,15 +1,66 @@
 import type { FigmaNode, FigmaTypeStyle } from "../types/figma";
 import { figmaToCSS, cssToString, cssToTailwind } from "./figma-to-css";
 
-function inferElement(node: FigmaNode, isRoot = false): string {
-  // Root frame (page-level) maps to <body>
+/** Convert a Figma node name to a kebab-case CSS class name. */
+function nodeNameToKebab(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Walk the subtree depth-first and assign unique kebab-case class names. */
+function buildClassMap(node: FigmaNode): Map<string, string> {
+  const map = new Map<string, string>();
+  const seen = new Map<string, number>();
+
+  function walk(n: FigmaNode) {
+    if (n.visible === false) return;
+    let base = nodeNameToKebab(n.name);
+    if (!base) base = "node";
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    const className = count === 1 ? base : `${base}-${count}`;
+    map.set(n.id, className);
+    for (const child of n.children ?? []) {
+      walk(child);
+    }
+  }
+
+  walk(node);
+  return map;
+}
+
+// Tags that must not nest inside themselves (invalid HTML)
+const NO_NEST_TAGS = new Set([
+  "header",
+  "footer",
+  "nav",
+  "button",
+  "a",
+  "main",
+]);
+
+function inferElement(
+  node: FigmaNode,
+  isRoot: boolean,
+  ancestorTags?: Set<string>,
+): string {
+  const blocked = ancestorTags ?? new Set<string>();
+
+  function pick(tag: string): string {
+    return blocked.has(tag) ? "div" : tag;
+  }
+
+  // Root frame: always <div> — the document wrapper is added by the caller
   if (
     isRoot &&
     (node.type === "FRAME" ||
       node.type === "COMPONENT" ||
       node.type === "INSTANCE")
   ) {
-    return "body";
+    return "div";
   }
 
   const name = node.name.toLowerCase();
@@ -20,8 +71,8 @@ function inferElement(node: FigmaNode, isRoot = false): string {
     if (fontSize >= 32) return "h2";
     if (fontSize >= 24) return "h3";
     if (fontSize >= 20) return "h4";
-    if (/link/i.test(node.name)) return "a";
-    if (/button|cta/i.test(node.name)) return "button";
+    if (/\blink\b/i.test(node.name)) return pick("a");
+    if (/button|cta|btn/i.test(node.name)) return pick("button");
     return "p";
   }
 
@@ -37,21 +88,20 @@ function inferElement(node: FigmaNode, isRoot = false): string {
     return "svg";
   }
 
-  // Frame-based semantic inference from name
-  if (/^header$/i.test(name) || (/header/i.test(name) && isRoot))
-    return "header";
-  if (/^footer$/i.test(name) || (/footer/i.test(name) && isRoot))
-    return "footer";
-  if (/^nav$|^navigation$|^links$/i.test(name)) return "nav";
+  // Frame-based semantic inference from name — substring/contains patterns
+  // Guarded by ancestor check to prevent nesting violations
+  if (/header/i.test(name)) return pick("header");
+  if (/footer/i.test(name)) return pick("footer");
+  if (/nav|navigation|menu/i.test(name)) return pick("nav");
   if (/hero|section/i.test(name)) return "section";
-  if (/^button$|^cta$/i.test(name)) return "button";
-  if (/^link$/i.test(name)) return "a";
+  if (/button|cta|btn/i.test(name)) return pick("button");
+  if (/\blink\b/i.test(name)) return pick("a");
   if (/^img$|^image$/i.test(name)) {
     const hasImageFill = node.fills?.some((f) => f.type === "IMAGE");
     if (hasImageFill) return "img";
   }
-  if (/^ul$|^list$/i.test(name)) return "ul";
-  if (/^li$|^list.?item$/i.test(name)) return "li";
+  if (/\blist\b|^ul$/i.test(name)) return "ul";
+  if (/list.?item|^li$/i.test(name)) return "li";
 
   return "div";
 }
@@ -223,70 +273,97 @@ function renderTextContent(node: FigmaNode): string {
     .join("");
 }
 
-export function nodeToHTML(node: FigmaNode, depth = 0, isRoot = true): string {
+/** Build the next ancestor tag set — adds the current tag if it's non-nestable. */
+function nextAncestors(current: Set<string>, tag: string): Set<string> {
+  if (NO_NEST_TAGS.has(tag)) {
+    const next = new Set(current);
+    next.add(tag);
+    return next;
+  }
+  return current;
+}
+
+// ─── HTML tab (semantic HTML with class names) ────────────────────────
+
+export function nodeToHTML(
+  node: FigmaNode,
+  depth = 0,
+  isRoot = true,
+  classMap?: Map<string, string>,
+  ancestorTags?: Set<string>,
+): string {
   if (node.visible === false) return "";
 
-  const tag = inferElement(node, isRoot);
-  const lines: string[] = [];
+  // Build class map once at root
+  if (!classMap) classMap = buildClassMap(node);
+  const ancestors = ancestorTags ?? new Set<string>();
+
+  const tag = inferElement(node, isRoot, ancestors);
+  const className = classMap.get(node.id);
+  const classAttr = className ? ` class="${className}"` : "";
 
   if (node.type === "TEXT") {
     const content = renderTextContent(node);
     if (tag === "a") {
-      lines.push(`${indent(depth)}<${tag} href="#">${content}</${tag}>`);
-    } else {
-      lines.push(`${indent(depth)}<${tag}>${content}</${tag}>`);
+      return `${indent(depth)}<${tag} href="#"${classAttr}>${content}</${tag}>`;
     }
-    return lines.join("\n");
+    return `${indent(depth)}<${tag}${classAttr}>${content}</${tag}>`;
   }
 
   if (tag === "img") {
     const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
     const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
-    lines.push(
-      `${indent(depth)}<${tag} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`,
-    );
-    return lines.join("\n");
+    return `${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
   }
 
   if (tag === "hr") {
-    lines.push(`${indent(depth)}<${tag} />`);
-    return lines.join("\n");
+    return `${indent(depth)}<${tag}${classAttr} />`;
   }
 
   if (tag === "svg") {
-    lines.push(
-      `${indent(depth)}<${tag}><!-- ${escapeHtml(node.name)} --></${tag}>`,
-    );
-    return lines.join("\n");
+    return `${indent(depth)}<${tag}${classAttr}><!-- ${escapeHtml(node.name)} --></${tag}>`;
   }
 
   // Container element
+  const childAncestors = nextAncestors(ancestors, tag);
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
-    .map((c) => nodeToHTML(c, depth + 1, false))
+    .map((c) => nodeToHTML(c, depth + 1, false, classMap, childAncestors))
     .filter(Boolean);
 
   if (children.length === 0) {
-    lines.push(`${indent(depth)}<${tag}></${tag}>`);
-  } else {
-    lines.push(`${indent(depth)}<${tag}>`);
-    lines.push(...children);
-    lines.push(`${indent(depth)}</${tag}>`);
+    return `${indent(depth)}<${tag}${classAttr}></${tag}>`;
   }
 
-  return lines.join("\n");
+  const body = [
+    `${indent(depth)}<${tag}${classAttr}>`,
+    ...children,
+    `${indent(depth)}</${tag}>`,
+  ].join("\n");
+
+  // Wrap root in HTML document structure
+  if (isRoot) {
+    return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="utf-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1" />\n  <title>${escapeHtml(node.name)}</title>\n</head>\n<body>\n${body}\n</body>\n</html>`;
+  }
+
+  return body;
 }
+
+// ─── Live tab (inline styles, no document wrapper — iframe provides it) ─
 
 export function nodeToHTMLWithCSS(
   node: FigmaNode,
   depth = 0,
   isRoot = true,
   parentNode?: FigmaNode,
+  ancestorTags?: Set<string>,
+  childIndex?: number,
 ): string {
   if (node.visible === false) return "";
 
-  const tag = inferElement(node, isRoot);
-  const css = figmaToCSS(node, parentNode, isRoot);
+  const ancestors = ancestorTags ?? new Set<string>();
+  const tag = inferElement(node, isRoot, ancestors);
+  const css = figmaToCSS(node, parentNode, isRoot, childIndex);
   const styleAttr =
     Object.keys(css).length > 0
       ? ` style="${Object.entries(css)
@@ -309,9 +386,12 @@ export function nodeToHTMLWithCSS(
     return `${indent(depth)}<${tag}${styleAttr} />`;
   }
 
+  const childAncestors = nextAncestors(ancestors, tag);
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
-    .map((c) => nodeToHTMLWithCSS(c, depth + 1, false, node))
+    .map((c, idx) =>
+      nodeToHTMLWithCSS(c, depth + 1, false, node, childAncestors, idx),
+    )
     .filter(Boolean);
 
   if (children.length === 0) {
@@ -324,6 +404,120 @@ export function nodeToHTMLWithCSS(
     `${indent(depth)}</${tag}>`,
   ].join("\n");
 }
+
+// ─── CSS tab (full subtree stylesheet) ────────────────────────────────
+
+/** Generate a full CSS stylesheet for the entire subtree with class-based selectors. */
+export function nodeToStylesheet(
+  node: FigmaNode,
+  classMap?: Map<string, string>,
+): string {
+  if (!classMap) classMap = buildClassMap(node);
+  const rules: string[] = [];
+
+  function walk(
+    n: FigmaNode,
+    parentNode?: FigmaNode,
+    isRoot = false,
+    childIndex?: number,
+  ) {
+    if (n.visible === false) return;
+    const className = classMap!.get(n.id);
+    if (!className) return;
+
+    const css = figmaToCSS(n, parentNode, isRoot, childIndex);
+    const props = cssToString(css);
+    if (props) {
+      rules.push(
+        `.${className} {\n${props
+          .split("\n")
+          .map((line) => "  " + line)
+          .join("\n")}\n}`,
+      );
+    }
+
+    const visibleChildren = (n.children ?? []).filter(
+      (c) => c.visible !== false,
+    );
+    visibleChildren.forEach((child, idx) => {
+      walk(child, n, false, idx);
+    });
+  }
+
+  walk(node, undefined, true);
+  return rules.join("\n\n");
+}
+
+// ─── Live tab with <style> block ──────────────────────────────────────
+
+/** Generate HTML with class attributes + a matching stylesheet (no inline styles). */
+export function nodeToHTMLWithStyleBlock(node: FigmaNode): {
+  html: string;
+  css: string;
+} {
+  const classMap = buildClassMap(node);
+  const ancestors = new Set<string>();
+  const html = nodeToHTMLWithClasses(node, 0, true, classMap, ancestors);
+  const css = nodeToStylesheet(node, classMap);
+  return { html, css };
+}
+
+/** Internal: generate HTML with class attributes (used by nodeToHTMLWithStyleBlock). */
+function nodeToHTMLWithClasses(
+  node: FigmaNode,
+  depth: number,
+  isRoot: boolean,
+  classMap: Map<string, string>,
+  ancestorTags: Set<string>,
+): string {
+  if (node.visible === false) return "";
+
+  const tag = inferElement(node, isRoot, ancestorTags);
+  const className = classMap.get(node.id);
+  const classAttr = className ? ` class="${className}"` : "";
+
+  if (node.type === "TEXT") {
+    const content = renderTextContent(node);
+    if (tag === "a") {
+      return `${indent(depth)}<${tag} href="#"${classAttr}>${content}</${tag}>`;
+    }
+    return `${indent(depth)}<${tag}${classAttr}>${content}</${tag}>`;
+  }
+
+  if (tag === "img") {
+    const w = Math.round(node.absoluteBoundingBox?.width ?? 100);
+    const h = Math.round(node.absoluteBoundingBox?.height ?? 100);
+    return `${indent(depth)}<${tag}${classAttr} src="https://placehold.co/${w}x${h}/e4e4e7/a1a1aa?text=${w}%C3%97${h}" alt="${escapeHtml(node.name)}" width="${w}" height="${h}" />`;
+  }
+
+  if (tag === "hr") {
+    return `${indent(depth)}<${tag}${classAttr} />`;
+  }
+
+  if (tag === "svg") {
+    return `${indent(depth)}<${tag}${classAttr}><!-- ${escapeHtml(node.name)} --></${tag}>`;
+  }
+
+  const childAncestors = nextAncestors(ancestorTags, tag);
+  const children = (node.children ?? [])
+    .filter((c) => c.visible !== false)
+    .map((c) =>
+      nodeToHTMLWithClasses(c, depth + 1, false, classMap, childAncestors),
+    )
+    .filter(Boolean);
+
+  if (children.length === 0) {
+    return `${indent(depth)}<${tag}${classAttr}></${tag}>`;
+  }
+
+  return [
+    `${indent(depth)}<${tag}${classAttr}>`,
+    ...children,
+    `${indent(depth)}</${tag}>`,
+  ].join("\n");
+}
+
+// ─── React tab ────────────────────────────────────────────────────────
 
 function toPascalCase(name: string): string {
   return name
@@ -339,14 +533,15 @@ function nodeToReactInner(
   depth = 0,
   isRoot = true,
   parentNode?: FigmaNode,
+  ancestorTags?: Set<string>,
+  childIndex?: number,
 ): string {
   if (node.visible === false) return "";
 
-  let tag = inferElement(node, isRoot);
-  // Map body → div for React components
-  if (tag === "body") tag = "div";
+  const ancestors = ancestorTags ?? new Set<string>();
+  const tag = inferElement(node, isRoot, ancestors);
 
-  const css = figmaToCSS(node, parentNode, isRoot);
+  const css = figmaToCSS(node, parentNode, isRoot, childIndex);
   const tw = cssToTailwind(css);
   const classAttr = tw.length > 0 ? ` className="${tw.join(" ")}"` : "";
 
@@ -368,9 +563,12 @@ function nodeToReactInner(
     return `${indent(depth)}<${tag}${classAttr} />`;
   }
 
+  const childAncestors = nextAncestors(ancestors, tag);
   const children = (node.children ?? [])
     .filter((c) => c.visible !== false)
-    .map((c) => nodeToReactInner(c, depth + 1, false, node))
+    .map((c, idx) =>
+      nodeToReactInner(c, depth + 1, false, node, childAncestors, idx),
+    )
     .filter(Boolean);
 
   if (children.length === 0) {
