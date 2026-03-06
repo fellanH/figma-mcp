@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-panel: #1e1e2e;
+  --color-panel-hover: #2a2a3e;
+  --color-surface: #181825;
+  --color-border: #313244;
+  --color-text: #cdd6f4;
+  --color-text-dim: #6c7086;
+  --color-accent: #89b4fa;
+  --color-accent-dim: #45475a;
+  --color-tag-frame: #89b4fa;
+  --color-tag-text: #f9e2af;
+  --color-tag-rect: #a6e3a1;
+  --color-tag-vector: #f5c2e7;
+  --color-tag-group: #94e2d5;
+  --color-tag-fill: #74c7ec;
+  --color-tag-hug: #fab387;
+  --color-tag-fixed: #6c7086;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+/* Tree indentation guides */
+.tree-indent {
+  border-left: 1px solid var(--color-border);
+}

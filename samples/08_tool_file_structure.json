@@ -1,0 +1,641 @@
+{
+  "name": "Hyperplane \u2013 Brand",
+  "lastModified": "2026-03-05T09:02:37Z",
+  "pages": [
+    {
+      "id": "0:1",
+      "name": "Brand Refresh",
+      "type": "CANVAS",
+      "children": [
+        {
+          "id": "90:16",
+          "name": "Brand Presentation",
+          "type": "SECTION",
+          "children": []
+        },
+        {
+          "id": "232:1166",
+          "name": "Brand Guidelines \u2013\u00a0Delivery",
+          "type": "SECTION",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "181:9",
+      "name": "Brand Refresh (Shared)",
+      "type": "CANVAS",
+      "children": [
+        {
+          "id": "181:11",
+          "name": "Start",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:28",
+          "name": "3",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:59",
+          "name": "4",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:72",
+          "name": "8",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:84",
+          "name": "9",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:96",
+          "name": "25",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:113",
+          "name": "19",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:133",
+          "name": "17",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:153",
+          "name": "2",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:196",
+          "name": "5",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:230",
+          "name": "13",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:251",
+          "name": "10",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:271",
+          "name": "11",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:290",
+          "name": "12",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:385",
+          "name": "14",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:467",
+          "name": "15",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:524",
+          "name": "18",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:550",
+          "name": "16",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:576",
+          "name": "7",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:595",
+          "name": "23",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:619",
+          "name": "22",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:643",
+          "name": "21",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:663",
+          "name": "26",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:691",
+          "name": "24",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:708",
+          "name": "1",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:732",
+          "name": "6",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:756",
+          "name": "20",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "181:780",
+          "name": "27",
+          "type": "FRAME",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "181:1073",
+      "name": "Homepage (Shared)",
+      "type": "CANVAS",
+      "children": [
+        {
+          "id": "181:1074",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "1:2",
+      "name": "Archive \u26a0\ufe0f",
+      "type": "CANVAS",
+      "children": [
+        {
+          "id": "232:29",
+          "name": "Start",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:46",
+          "name": "Logo",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:63",
+          "name": "Colors",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:80",
+          "name": "Logo",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:97",
+          "name": "Logo",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:114",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:115",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:116",
+          "name": " ",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:119",
+          "name": " ",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:122",
+          "name": "symbol",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:123",
+          "name": "symbol",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:124",
+          "name": "Hyperplane",
+          "type": "TEXT"
+        },
+        {
+          "id": "232:125",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:126",
+          "name": "Hyperplane",
+          "type": "TEXT"
+        },
+        {
+          "id": "232:127",
+          "name": "hyperplane",
+          "type": "TEXT"
+        },
+        {
+          "id": "232:128",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:129",
+          "name": " ",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:132",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:133",
+          "name": " ",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:136",
+          "name": "Logo: 1",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:155",
+          "name": "elena-helade-7BCp7jJec2Y-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:156",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:157",
+          "name": "Visual Identity: 23",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:184",
+          "name": "Visual Identity: 7",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:211",
+          "name": "Logo: 2",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:224",
+          "name": "Start: 1",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:226",
+          "name": "Start: 2",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:228",
+          "name": "Colors",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:231",
+          "name": "Colors",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:266",
+          "name": "Colors",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:304",
+          "name": "Colors: 1",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:384",
+          "name": "Colors: 2",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:402",
+          "name": "Colors: 4",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:427",
+          "name": "Typography",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:450",
+          "name": "Typography",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:540",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:620",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:700",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:780",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:805",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:830",
+          "name": "Home",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:855",
+          "name": "stormfors._a_single_sheet_of_cream_paper_folded_into_sharp_ge_34088b25-f854-4dcc-a152-03ed40ab5d78_0 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:856",
+          "name": "stormfors._a_single_sheet_of_cream_paper_folded_into_sharp_ge_82ecc0db-d12e-48a6-b619-b16190be192d_0 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:857",
+          "name": "stormfors._three_golden_wheat_stalks_at_varying_heights_arrange_d7f83319-202f-4f24-a90f-35d2f40d5739 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:858",
+          "name": "stormfors._golden_hibiscus_flowers_clustered_in_the_right_thi_c51412c5-cf67-4395-8702-49a374bf2ea5_0 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:859",
+          "name": "stormfors._golden_hibiscus_flowers_clustered_in_the_right_thi_6fc4dca5-3b53-4f11-9e8a-4e9e5a335461_1 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:860",
+          "name": "kseniya-lapteva-gHqFfZvK9ko-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:861",
+          "name": "Visual Identity: 16",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:895",
+          "name": "Frame 1000002630",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:913",
+          "name": "Frame 1000002573",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:953",
+          "name": "Brand Positioning: 11",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:970",
+          "name": "Visual Identity: 22",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:989",
+          "name": "Visual Identity: 18",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1009",
+          "name": "Visual Identity: 9",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1028",
+          "name": "stormfors._One_modern_sensor_tower_standing_alone_in_an_endle_368ba63a-5389-47d8-a5bf-a72b0f3ba283_0 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1029",
+          "name": "Visual Identity: 8",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1051",
+          "name": "Visual Identity: 15",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1070",
+          "name": "Visual Identity: 4",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1095",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:1096",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:1097",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:1098",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:1099",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:1100",
+          "name": "Vector",
+          "type": "VECTOR"
+        },
+        {
+          "id": "232:1101",
+          "name": "Colors",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1123",
+          "name": "zdenek-machacek-YosVwKU9e6g-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1124",
+          "name": "yianni-mathioudakis-p2mo3CbfQjM-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1125",
+          "name": "kseniya-lapteva-xYpDYgepQ9Y-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1126",
+          "name": "ant-rozetsky-io7dX_1EFCg-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1127",
+          "name": "stormfors._a_vast_expanse_of_hammered_copper_surface_with_gre_95757bfc-7708-44aa-9696-009bfb6deb2d_0 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1128",
+          "name": "stormfors._a_single_small_torn_fragment_of_aged_copper_with_g_f3d5f183-1118-4df7-9cf1-db57b8a7ae66_3 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1129",
+          "name": "stormfors._a_small_coil_of_raw_copper_wire_sitting_centered_in__ba856a99-4dff-4582-936b-975e331468f6 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1130",
+          "name": "stormfors._a_single_piece_of_raw_iron_ore_warm_rust-red_surface_29444268-17ab-495c-84b1-b4521c85d3a0 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1131",
+          "name": "getty-images-H7lG6MukjYA-unsplash 1",
+          "type": "RECTANGLE"
+        },
+        {
+          "id": "232:1132",
+          "name": "Frame 1000002608",
+          "type": "FRAME",
+          "children": []
+        },
+        {
+          "id": "232:1164",
+          "name": "65af40a4fcb4eb0615fc13b3_68db9283f7e8e72d0723a328_1- Top video (1)-transcode 1",
+          "type": "RECTANGLE"
+        }
+      ]
+    }
+  ]
+}

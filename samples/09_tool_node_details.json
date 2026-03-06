@@ -1,0 +1,256 @@
+{
+  "181:1092": {
+    "id": "181:1092",
+    "name": "Header",
+    "type": "FRAME",
+    "visible": true,
+    "bounds": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1440.0,
+      "height": 88.0
+    },
+    "size": {
+      "width": 1440.0,
+      "height": 88.0
+    },
+    "strokes": [
+      {
+        "type": "SOLID",
+        "color": "#1b2433",
+        "weight": 1.0
+      }
+    ],
+    "autoLayout": {
+      "direction": "VERTICAL",
+      "gap": 24.0,
+      "paddingTop": 24.0,
+      "paddingRight": 48.0,
+      "paddingBottom": 24.0,
+      "paddingLeft": 48.0,
+      "primaryAxisAlign": null,
+      "counterAxisAlign": null,
+      "wrap": "NO_WRAP"
+    },
+    "children": [
+      {
+        "id": "181:1093",
+        "name": "Header Content",
+        "type": "FRAME"
+      }
+    ]
+  },
+  "181:1111": {
+    "id": "181:1111",
+    "name": "Hero Section",
+    "type": "FRAME",
+    "visible": true,
+    "bounds": {
+      "x": 0.0,
+      "y": 88.0,
+      "width": 1440.0,
+      "height": 820.0
+    },
+    "size": {
+      "width": 1440.0,
+      "height": 820.0
+    },
+    "autoLayout": {
+      "direction": "VERTICAL",
+      "gap": 80.0,
+      "paddingTop": 112.0,
+      "paddingRight": 48.0,
+      "paddingBottom": 112.0,
+      "paddingLeft": 48.0,
+      "primaryAxisAlign": "SPACE_BETWEEN",
+      "counterAxisAlign": null,
+      "wrap": "NO_WRAP"
+    },
+    "children": [
+      {
+        "id": "181:1112",
+        "name": "Heading",
+        "type": "TEXT"
+      },
+      {
+        "id": "181:1113",
+        "name": "P",
+        "type": "TEXT"
+      }
+    ]
+  },
+  "181:1114": {
+    "id": "181:1114",
+    "name": "Companies Section",
+    "type": "FRAME",
+    "visible": true,
+    "bounds": {
+      "x": 0.0,
+      "y": 908.0,
+      "width": 1440.0,
+      "height": 1522.666748046875
+    },
+    "size": {
+      "width": 1440.0,
+      "height": 1522.666748046875
+    },
+    "autoLayout": {
+      "direction": "VERTICAL",
+      "gap": 112.0,
+      "paddingTop": 112.0,
+      "paddingRight": 48.0,
+      "paddingBottom": 112.0,
+      "paddingLeft": 48.0,
+      "primaryAxisAlign": null,
+      "counterAxisAlign": null,
+      "wrap": "NO_WRAP"
+    },
+    "children": [
+      {
+        "id": "181:1115",
+        "name": "Companies Content",
+        "type": "FRAME"
+      },
+      {
+        "id": "181:1146",
+        "name": "Frame 1000002571",
+        "type": "FRAME"
+      }
+    ]
+  },
+  "181:1148": {
+    "id": "181:1148",
+    "name": "Inflection Section",
+    "type": "FRAME",
+    "visible": true,
+    "bounds": {
+      "x": 0.0,
+      "y": 2430.666748046875,
+      "width": 1440.0,
+      "height": 1895.0
+    },
+    "size": {
+      "width": 1440.0,
+      "height": 1895.0
+    },
+    "autoLayout": {
+      "direction": "VERTICAL",
+      "gap": 112.0,
+      "paddingTop": 112.0,
+      "paddingRight": 48.0,
+      "paddingBottom": 112.0,
+      "paddingLeft": 48.0,
+      "primaryAxisAlign": "CENTER",
+      "counterAxisAlign": "MAX",
+      "wrap": "NO_WRAP"
+    },
+    "children": [
+      {
+        "id": "181:1149",
+        "name": "Inflection Content",
+        "type": "FRAME"
+      },
+      {
+        "id": "181:1151",
+        "name": "Inflection Text",
+        "type": "FRAME"
+      },
+      {
+        "id": "181:1154",
+        "name": "Founders Section",
+        "type": "FRAME"
+      },
+      {
+        "id": "181:1257",
+        "name": "Frame 1000002571",
+        "type": "FRAME"
+      }
+    ]
+  },
+  "181:1259": {
+    "id": "181:1259",
+    "name": "News Section",
+    "type": "FRAME",
+    "visible": true,
+    "bounds": {
+      "x": 0.0,
+      "y": 4325.6669921875,
+      "width": 1440.0,
+      "height": 1385.0
+    },
+    "size": {
+      "width": 1440.0,
+      "height": 1385.0
+    },
+    "autoLayout": {
+      "direction": "VERTICAL",
+      "gap": 112.0,
+      "paddingTop": 112.0,
+      "paddingRight": 48.0,
+      "paddingBottom": 112.0,
+      "paddingLeft": 48.0,
+      "primaryAxisAlign": "CENTER",
+      "counterAxisAlign": "MAX",
+      "wrap": "NO_WRAP"
+    },
+    "children": [
+      {
+        "id": "181:1260",
+        "name": "Heading",
+        "type": "TEXT"
+      },
+      {
+        "id": "181:1261",
+        "name": "News Content",
+        "type": "FRAME"
+      },
+      {
+        "id": "181:1286",
+        "name": "Frame 1000002571",
+        "type": "FRAME"
+      }
+    ]
+  },
+  "181:1288": {
+    "id": "181:1288",
+    "name": "Frame 1000002571",
+    "type": "FRAME",
+    "visible": false,
+    "bounds": {
+      "x": 48.0,
+      "y": 6226.80712890625,
+      "width": 211.0,
+      "height": 57.0
+    },
+    "size": {
+      "width": 211.0,
+      "height": 57.0
+    },
+    "fills": [
+      {
+        "type": "SOLID",
+        "color": "#1b2433",
+        "opacity": null
+      }
+    ],
+    "cornerRadius": 500.0,
+    "autoLayout": {
+      "direction": "HORIZONTAL",
+      "gap": 10.0,
+      "paddingTop": 16.0,
+      "paddingRight": 24.0,
+      "paddingBottom": 16.0,
+      "paddingLeft": 24.0,
+      "primaryAxisAlign": "CENTER",
+      "counterAxisAlign": "CENTER",
+      "wrap": "NO_WRAP"
+    },
+    "children": [
+      {
+        "id": "181:1289",
+        "name": "P",
+        "type": "TEXT"
+      }
+    ]
+  }
+}
