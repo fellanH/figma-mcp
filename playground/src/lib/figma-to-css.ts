@@ -594,6 +594,174 @@ export function cssToString(css: CSSProperties): string {
     .join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Tailwind design-scale lookup maps
+// Snap pixel/percentage values to idiomatic Tailwind tokens; fall back to
+// arbitrary values only when no exact match exists.
+// ---------------------------------------------------------------------------
+
+/** Tailwind default spacing scale: px value → token (e.g. 16 → "4"). */
+const TW_SPACING: Record<number, string> = {
+  0: "0",
+  1: "px",
+  2: "0.5",
+  4: "1",
+  6: "1.5",
+  8: "2",
+  10: "2.5",
+  12: "3",
+  14: "3.5",
+  16: "4",
+  20: "5",
+  24: "6",
+  28: "7",
+  32: "8",
+  36: "9",
+  40: "10",
+  44: "11",
+  48: "12",
+  52: "13",
+  56: "14",
+  60: "15",
+  64: "16",
+  72: "18",
+  80: "20",
+  96: "24",
+  112: "28",
+  128: "32",
+  144: "36",
+  160: "40",
+  176: "44",
+  192: "48",
+  208: "52",
+  224: "56",
+  240: "60",
+  256: "64",
+  288: "72",
+  320: "80",
+  384: "96",
+};
+
+/** Tailwind default font-size scale: px value → token (e.g. 14 → "sm"). */
+const TW_FONT_SIZE: Record<number, string> = {
+  12: "xs",
+  14: "sm",
+  16: "base",
+  18: "lg",
+  20: "xl",
+  24: "2xl",
+  30: "3xl",
+  36: "4xl",
+  48: "5xl",
+  60: "6xl",
+  72: "7xl",
+  96: "8xl",
+  128: "9xl",
+};
+
+/** Tailwind default border-radius scale: px value → token (e.g. 8 → "lg"). */
+const TW_BORDER_RADIUS: Record<number, string> = {
+  0: "none",
+  2: "sm",
+  4: "md",
+  6: "lg",
+  8: "xl",
+  12: "2xl",
+  16: "3xl",
+};
+
+/** Resolve a px spacing value to a Tailwind spacing token, or return undefined. */
+function snapSpacing(px: number): string | undefined {
+  return TW_SPACING[px];
+}
+
+/** Resolve a px font-size to a Tailwind text-size token, or return undefined. */
+function snapFontSize(px: number): string | undefined {
+  return TW_FONT_SIZE[px];
+}
+
+/** Resolve a px border-radius to a Tailwind rounded token, or return undefined. */
+function snapBorderRadius(px: number): string | undefined {
+  return TW_BORDER_RADIUS[px];
+}
+
+/**
+ * Resolve a CSS padding shorthand string to Tailwind padding classes.
+ * Handles: "16px", "16px 8px", "16px 8px 4px 2px".
+ * Returns an array of class strings.
+ */
+function snapPadding(val: string): string[] {
+  const parts = val.split(/\s+/).map((p) => {
+    const px = parseFloat(p);
+    return { px, token: isNaN(px) ? undefined : snapSpacing(px), raw: p };
+  });
+
+  if (parts.length === 1) {
+    // Uniform padding: p-{token}
+    const { px, token } = parts[0];
+    if (token !== undefined) return [`p-${token}`];
+    return [`p-[${px}px]`];
+  }
+
+  if (parts.length === 2) {
+    // py px
+    const [y, x] = parts;
+    const yClass = y.token !== undefined ? `py-${y.token}` : `py-[${y.px}px]`;
+    const xClass = x.token !== undefined ? `px-${x.token}` : `px-[${x.px}px]`;
+    if (y.token !== undefined && x.token !== undefined) {
+      // If both tokens are the same, just return py + px or unified p-
+      if (y.token === x.token) return [`p-${y.token}`];
+    }
+    return [yClass, xClass];
+  }
+
+  if (parts.length === 4) {
+    // top right bottom left
+    const [t, r, b, l] = parts;
+    const allSame =
+      t.token !== undefined &&
+      t.token === r.token &&
+      r.token === b.token &&
+      b.token === l.token;
+    if (allSame) return [`p-${t.token}`];
+
+    const yMatch = t.token !== undefined && t.token === b.token;
+    const xMatch = r.token !== undefined && r.token === l.token;
+    if (yMatch && xMatch) {
+      const yClass = t.token !== undefined ? `py-${t.token}` : `py-[${t.px}px]`;
+      const xClass = r.token !== undefined ? `px-${r.token}` : `px-[${r.px}px]`;
+      return [yClass, xClass];
+    }
+
+    // Individual sides
+    return [
+      t.token !== undefined ? `pt-${t.token}` : `pt-[${t.px}px]`,
+      r.token !== undefined ? `pr-${r.token}` : `pr-[${r.px}px]`,
+      b.token !== undefined ? `pb-${b.token}` : `pb-[${b.px}px]`,
+      l.token !== undefined ? `pl-${l.token}` : `pl-[${l.px}px]`,
+    ];
+  }
+
+  // Fallback: arbitrary
+  return [`p-[${val.replace(/ /g, "_")}]`];
+}
+
+/**
+ * Resolve a CSS dimension value (e.g. "24px", "100%", "fit-content") to a
+ * Tailwind sizing token for the given prefix ("w", "h", "min-w", etc.).
+ */
+function snapDimension(val: string, prefix: string): string {
+  if (val === "100%") return `${prefix}-full`;
+  if (val === "fit-content") return `${prefix}-fit`;
+  if (val === "0" || val === "0px") return `${prefix}-0`;
+  const px = parseFloat(val);
+  if (!isNaN(px)) {
+    const token = snapSpacing(px);
+    if (token !== undefined) return `${prefix}-${token}`;
+  }
+  return `${prefix}-[${val}]`;
+}
+
 export function cssToTailwind(css: CSSProperties): string[] {
   const classes: string[] = [];
   const map: Record<string, () => void> = {
@@ -628,18 +796,19 @@ export function cssToTailwind(css: CSSProperties): string[] {
       if (val && m[val]) classes.push(m[val]);
     },
     gap: () => {
-      const val = parseInt(css["gap"]);
-      if (val) classes.push(`gap-[${val}px]`);
+      const raw = css["gap"];
+      if (!raw) return;
+      const px = parseInt(raw);
+      const token = !isNaN(px) ? snapSpacing(px) : undefined;
+      classes.push(token !== undefined ? `gap-${token}` : `gap-[${raw}]`);
     },
     width: () => {
-      if (css["width"] === "100%") classes.push("w-full");
-      else if (css["width"] === "fit-content") classes.push("w-fit");
-      else classes.push(`w-[${css["width"]}]`);
+      const val = css["width"];
+      if (val) classes.push(snapDimension(val, "w"));
     },
     height: () => {
-      if (css["height"] === "100%") classes.push("h-full");
-      else if (css["height"] === "fit-content") classes.push("h-fit");
-      else classes.push(`h-[${css["height"]}]`);
+      const val = css["height"];
+      if (val) classes.push(snapDimension(val, "h"));
     },
     overflow: () => {
       if (css["overflow"] === "hidden") classes.push("overflow-hidden");
@@ -655,7 +824,23 @@ export function cssToTailwind(css: CSSProperties): string[] {
     },
     "border-radius": () => {
       const val = css["border-radius"];
-      if (val) classes.push(`rounded-[${val}]`);
+      if (!val) return;
+      // Single value like "8px" → snap to token
+      const singlePx = val.match(/^(\d+(?:\.\d+)?)px$/);
+      if (singlePx) {
+        const px = parseFloat(singlePx[1]);
+        if (px === 9999 || px >= 9999) {
+          classes.push("rounded-full");
+          return;
+        }
+        const token = snapBorderRadius(px);
+        classes.push(
+          token !== undefined ? `rounded-${token}` : `rounded-[${val}]`,
+        );
+        return;
+      }
+      // Multi-value shorthand — fall through to arbitrary
+      classes.push(`rounded-[${val.replace(/ /g, "_")}]`);
     },
     opacity: () => {
       const val = parseFloat(css["opacity"]);
@@ -746,19 +931,19 @@ export function cssToTailwind(css: CSSProperties): string[] {
     },
     "min-width": () => {
       const val = css["min-width"];
-      if (val) classes.push(`min-w-[${val}]`);
+      if (val) classes.push(snapDimension(val, "min-w"));
     },
     "max-width": () => {
       const val = css["max-width"];
-      if (val) classes.push(`max-w-[${val}]`);
+      if (val) classes.push(snapDimension(val, "max-w"));
     },
     "min-height": () => {
       const val = css["min-height"];
-      if (val) classes.push(`min-h-[${val}]`);
+      if (val) classes.push(snapDimension(val, "min-h"));
     },
     "max-height": () => {
       const val = css["max-height"];
-      if (val) classes.push(`max-h-[${val}]`);
+      if (val) classes.push(snapDimension(val, "max-h"));
     },
     "align-self": () => {
       const m: Record<string, string> = {
@@ -771,12 +956,18 @@ export function cssToTailwind(css: CSSProperties): string[] {
       if (val && m[val]) classes.push(m[val]);
     },
     "row-gap": () => {
-      const val = parseInt(css["row-gap"]);
-      if (val) classes.push(`gap-y-[${val}px]`);
+      const raw = css["row-gap"];
+      if (!raw) return;
+      const px = parseInt(raw);
+      const token = !isNaN(px) ? snapSpacing(px) : undefined;
+      classes.push(token !== undefined ? `gap-y-${token}` : `gap-y-[${raw}]`);
     },
     "column-gap": () => {
-      const val = parseInt(css["column-gap"]);
-      if (val) classes.push(`gap-x-[${val}px]`);
+      const raw = css["column-gap"];
+      if (!raw) return;
+      const px = parseInt(raw);
+      const token = !isNaN(px) ? snapSpacing(px) : undefined;
+      classes.push(token !== undefined ? `gap-x-${token}` : `gap-x-[${raw}]`);
     },
     "mix-blend-mode": () => {
       const val = css["mix-blend-mode"];
@@ -830,13 +1021,19 @@ export function cssToTailwind(css: CSSProperties): string[] {
     if (map[key]) map[key]();
   }
 
-  // Padding shorthand
+  // Padding shorthand — snap to Tailwind spacing tokens
   if (css["padding"]) {
-    classes.push(`p-[${css["padding"].replace(/ /g, "_")}]`);
+    classes.push(...snapPadding(css["padding"]));
   }
 
-  // Font
-  if (css["font-size"]) classes.push(`text-[${css["font-size"]}]`);
+  // Font size — snap to Tailwind text-size tokens
+  if (css["font-size"]) {
+    const fsPx = parseFloat(css["font-size"]);
+    const fsToken = !isNaN(fsPx) ? snapFontSize(fsPx) : undefined;
+    classes.push(
+      fsToken !== undefined ? `text-${fsToken}` : `text-[${css["font-size"]}]`,
+    );
+  }
   if (css["font-weight"]) {
     const w = parseInt(css["font-weight"]);
     const m: Record<number, string> = {
