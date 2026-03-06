@@ -3,6 +3,8 @@
  * Maps Figma component name patterns to React (shadcn/ui) imports and usage.
  */
 
+import type { FigmaNode } from "../types/figma";
+
 export interface ComponentMapping {
   /** Pattern to match against Figma component name (case-insensitive) */
   pattern: RegExp;
@@ -194,9 +196,7 @@ export function findComponentMapping(
  * Map Figma variant properties to React component props using the mapping config.
  */
 export function mapVariantProps(
-  node: {
-    componentProperties?: Record<string, { type?: string; value?: unknown }>;
-  },
+  node: FigmaNode,
   mapping: ComponentMapping,
 ): Record<string, string> {
   const props: Record<string, string> = {};
@@ -238,17 +238,7 @@ export function mapVariantProps(
  * Generate the JSX for a mapped design system component.
  */
 export function generateMappedComponent(
-  node: {
-    name: string;
-    componentProperties?: Record<string, { type?: string; value?: unknown }>;
-    children?: Array<{
-      type: string;
-      characters?: string;
-      visible?: boolean;
-      name: string;
-      children?: any[];
-    }>;
-  },
+  node: FigmaNode,
   mapping: ComponentMapping,
   depth: number,
 ): { jsx: string; importStatement: string } {
@@ -283,15 +273,7 @@ export function generateMappedComponent(
 }
 
 /** Find the primary text content from a node's children recursively. */
-function findTextContent(
-  children?: Array<{
-    type: string;
-    characters?: string;
-    visible?: boolean;
-    name: string;
-    children?: any[];
-  }>,
-): string {
+function findTextContent(children?: FigmaNode[]): string {
   if (!children) return "";
 
   for (const child of children) {

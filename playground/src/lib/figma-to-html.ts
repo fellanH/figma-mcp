@@ -391,8 +391,14 @@ export function nodeToHTML(
   if (isSkipped(decisions, node.id, "diamond-gradient")) {
     return `${indent(depth)}<!-- Skipped: diamond gradient on ${escapeHtml(node.name)} -->`;
   }
-  if (isSkipped(decisions, node.id, "image-fill")) {
-    return `${indent(depth)}<!-- Skipped: image fill on ${escapeHtml(node.name)} -->`;
+  // Image-fill uses a global key (__all__), not per-node
+  if (isSkipped(decisions, "__all__", "image-fill")) {
+    const hasImageFill = node.fills?.some(
+      (f) => f.type === "IMAGE" && f.visible !== false,
+    );
+    if (hasImageFill) {
+      return `${indent(depth)}<!-- Skipped: image fill on ${escapeHtml(node.name)} -->`;
+    }
   }
 
   // Build class map once at root
@@ -575,11 +581,15 @@ export function nodeToStylesheet(
     if (n.visible === false) return;
 
     // Skip nodes with "skip" decisions
-    if (
-      isSkipped(decisions, n.id, "unsupported-node") ||
-      isSkipped(decisions, n.id, "image-fill")
-    ) {
+    if (isSkipped(decisions, n.id, "unsupported-node")) {
       return;
+    }
+    // Image-fill uses global key __all__
+    if (isSkipped(decisions, "__all__", "image-fill")) {
+      const hasImage = n.fills?.some(
+        (f) => f.type === "IMAGE" && f.visible !== false,
+      );
+      if (hasImage) return;
     }
 
     const className = classMap!.get(n.id);
@@ -756,7 +766,7 @@ function nodeToReactInner(
     const mapping = findComponentMapping(node.name);
     if (mapping) {
       const { jsx, importStatement } = generateMappedComponent(
-        node as any,
+        node,
         mapping,
         depth,
       );
@@ -847,7 +857,7 @@ export function nodeToReact(
     const mapping = findComponentMapping(node.name);
     if (mapping) {
       const { jsx, importStatement } = generateMappedComponent(
-        node as any,
+        node,
         mapping,
         2,
       );

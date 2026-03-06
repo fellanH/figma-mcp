@@ -89,3 +89,11 @@ class FigmaClient:
             f"/files/{file_key}/nodes",
             params={"ids": ",".join(node_ids), "plugin_data": "shared"},
         )
+
+    async def get_file_images(self, file_key: str) -> dict:
+        """Get download URLs for all images used as fills in a file.
+
+        Returns a mapping of imageRef hashes to temporary S3 URLs.
+        These URLs expire after ~14 days.
+        """
+        return await self._request("GET", f"/files/{file_key}/images")

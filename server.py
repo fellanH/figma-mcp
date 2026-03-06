@@ -364,5 +364,26 @@ async def export_assets(
     }
 
 
+@mcp.tool()
+async def get_image_fill_urls(file_key: str) -> dict:
+    """Resolve image fill references to download URLs.
+
+    Returns a mapping of image reference hashes to temporary download URLs.
+    Use this to get actual image URLs for nodes that have IMAGE type fills.
+    The imageRef values come from node fill data (fill.imageRef).
+
+    Note: URLs are temporary and expire after ~14 days.
+
+    Args:
+        file_key: The Figma file key.
+    """
+    data = await client.get_file_images(file_key)
+    images = data.get("meta", {}).get("images", {})
+    return {
+        "images": images,
+        "note": "URLs are temporary Figma-hosted links. Download for permanent use.",
+    }
+
+
 if __name__ == "__main__":
     mcp.run()
