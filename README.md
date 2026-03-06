@@ -26,23 +26,24 @@ Add to `.mcp.json`:
 ```json
 {
   "figma": {
-    "command": "/Users/admin/omni/workspaces/agent-tools/figma-mcp/.venv/bin/python",
+    "command": "/path/to/figma-mcp/.venv/bin/python",
     "args": ["server.py"],
-    "cwd": "/Users/admin/omni/workspaces/agent-tools/figma-mcp"
+    "cwd": "/path/to/figma-mcp"
   }
 }
 ```
 
 ## Tools
 
-| Tool                 | Description                                        |
-| -------------------- | -------------------------------------------------- |
-| `get_file_structure` | Page/frame tree overview of a Figma file           |
-| `get_node_details`   | Full node info — layout, styles, auto-layout props |
-| `get_styles`         | Published color, text, effect, grid styles         |
-| `get_components`     | Published components with properties & variants    |
-| `get_design_tokens`  | Extract variables as design tokens                 |
-| `export_assets`      | Export nodes as SVG, PNG, JPG, or PDF              |
+| Tool                  | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| `get_file_structure`  | Page/frame tree overview of a Figma file           |
+| `get_node_details`    | Full node info — layout, styles, auto-layout props |
+| `get_styles`          | Published color, text, effect, grid styles         |
+| `get_components`      | Published components with properties & variants    |
+| `get_design_tokens`   | Extract variables as design tokens                 |
+| `export_assets`       | Export nodes as SVG, PNG, JPG, or PDF              |
+| `get_image_fill_urls` | Resolve image fill references to download URLs     |
 
 ## Typical Workflow
 
@@ -52,3 +53,15 @@ Add to `.mcp.json`:
 4. `get_node_details(file_key, node_ids)` — dive into specific frames
 5. `get_design_tokens(file_key)` — extract variables for Tailwind/CSS
 6. `export_assets(file_key, node_ids)` — export icons/images as SVG
+
+## Playground
+
+The `playground/` directory contains a React dev lab for testing the code generation engine locally:
+
+```bash
+cd playground
+npm install
+npm run dev
+```
+
+Load sample JSON files from `samples/` to preview HTML, CSS, React, and Tailwind output.

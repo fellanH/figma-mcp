@@ -385,5 +385,9 @@ async def get_image_fill_urls(file_key: str) -> dict:
     }
 
 
-if __name__ == "__main__":
+def main():
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()
