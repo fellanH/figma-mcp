@@ -59,6 +59,9 @@ export interface FigmaTypeStyle {
   textCase?: "ORIGINAL" | "UPPER" | "LOWER" | "TITLE";
   textDecoration?: string;
   italic?: boolean;
+  // Text truncation
+  textTruncation?: "DISABLED" | "ENDING";
+  maxLines?: number;
 }
 
 export interface FigmaNode {
@@ -131,6 +134,8 @@ export interface FigmaNode {
   style?: FigmaTypeStyle;
   characterStyleOverrides?: number[];
   styleOverrideTable?: Record<string, Partial<FigmaTypeStyle>>;
+  // Text auto-resize mode (TEXT nodes)
+  textAutoResize?: "NONE" | "HEIGHT" | "WIDTH_AND_HEIGHT" | "TRUNCATE";
 
   // Constraints
   constraints?: {

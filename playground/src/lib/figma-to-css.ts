@@ -413,6 +413,50 @@ export function figmaToCSS(
     if (s.textDecoration === "UNDERLINE") css["text-decoration"] = "underline";
     if (s.textDecoration === "STRIKETHROUGH")
       css["text-decoration"] = "line-through";
+
+    // Text truncation (#7)
+    if (s.textTruncation === "ENDING") {
+      const lines = s.maxLines ?? 1;
+      if (lines <= 1) {
+        // Single-line ellipsis
+        css["overflow"] = "hidden";
+        css["text-overflow"] = "ellipsis";
+        css["white-space"] = "nowrap";
+      } else {
+        // Multi-line clamp
+        css["display"] = "-webkit-box";
+        css["-webkit-line-clamp"] = String(lines);
+        css["-webkit-box-orient"] = "vertical";
+        css["overflow"] = "hidden";
+      }
+    }
+
+    // textAutoResize sizing (#7)
+    if (node.textAutoResize) {
+      switch (node.textAutoResize) {
+        case "WIDTH_AND_HEIGHT":
+          // Shrink-wrap: size is driven by content — no forced dimensions
+          // (already handled by HUG sizing; ensure no clipping)
+          css["white-space"] = css["white-space"] ?? "nowrap";
+          break;
+        case "HEIGHT":
+          // Fixed width, height grows with content — allow wrapping
+          css["white-space"] = css["white-space"] ?? "normal";
+          css["word-break"] = "break-word";
+          break;
+        case "NONE":
+          // Fixed box — content may clip
+          css["overflow"] = css["overflow"] ?? "hidden";
+          css["white-space"] = css["white-space"] ?? "normal";
+          break;
+        case "TRUNCATE":
+          // Fixed box with single-line truncation (legacy Figma value)
+          css["overflow"] = "hidden";
+          css["text-overflow"] = "ellipsis";
+          css["white-space"] = "nowrap";
+          break;
+      }
+    }
   }
 
   return css;
@@ -611,6 +655,31 @@ export function cssToTailwind(css: CSSProperties): string[] {
     "mix-blend-mode": () => {
       const val = css["mix-blend-mode"];
       if (val) classes.push(`mix-blend-${val}`);
+    },
+    "text-overflow": () => {
+      if (css["text-overflow"] === "ellipsis") {
+        // Handled combinatorially in the white-space handler below
+      }
+    },
+    "white-space": () => {
+      const ws = css["white-space"];
+      const isEllipsis = css["text-overflow"] === "ellipsis";
+      const isHidden = css["overflow"] === "hidden";
+      if (ws === "nowrap" && isEllipsis && isHidden) {
+        // Single-line truncate — Tailwind `truncate` covers all three props
+        classes.push("truncate");
+      } else if (ws === "nowrap") {
+        classes.push("whitespace-nowrap");
+      } else if (ws === "normal") {
+        classes.push("whitespace-normal");
+      }
+    },
+    "word-break": () => {
+      if (css["word-break"] === "break-word") classes.push("break-words");
+    },
+    "-webkit-line-clamp": () => {
+      const n = parseInt(css["-webkit-line-clamp"] ?? "");
+      if (!isNaN(n) && n > 0) classes.push(`line-clamp-${n}`);
     },
   };
 
